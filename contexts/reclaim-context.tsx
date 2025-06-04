@@ -1,289 +1,208 @@
 "use client"
 
-import { createContext, useContext, useState, type ReactNode, useCallback, useEffect } from "react"
-import type {
-  UserProfile,
-  Contact,
-  ActivityLogEntry,
-  Notification,
+import { createContext, useContext, useState, useEffect, type ReactNode, useCallback } from "react"
+import {
+  type UserProfile,
+  type Contact,
+  type ActivityLogEntry,
   EventType,
-  ReviewRequestDetails,
+  type ReviewRequestDetails,
+  type BreachReport,
 } from "@/lib/reclaim-types"
-import { formatShortTimestamp } from "@/lib/utils"
+// This import should now work correctly
+import { DEMO_USER_PROFILE, DEMO_CONTACTS, DEMO_ACTIVITY_LOG } from "@/lib/demo-data"
 
-const INVITATION_EXPIRY_DAYS = 7
-
-const initialUserProfile: UserProfile = {
-  userId: `local_user_${Date.now()}`,
-  name: "New User",
-  authMethod: "local_session",
-  createdAt: new Date().toISOString(),
-  currentStatus: "safe",
-  recoveryStage: null,
-  lastVerification: new Date().toISOString(),
-}
-
-interface ReclaimContextState {
+interface ReclaimContextType {
   userProfile: UserProfile | null
   contacts: Contact[]
   activityLog: ActivityLogEntry[]
-  notifications: Notification[]
   isLoading: boolean
-  error: string | null
-  initializeSession: (name?: string) => void
-  addContactAndSendInvitation: (
-    newContactData: Omit<
-      Contact,
-      | "contactId"
-      | "userId"
-      | "addedAt"
-      | "status"
-      | "lastNotified"
-      | "invitationSentAt"
-      | "invitationExpiresAt"
-      | "recoveryVoteStatus"
-      | "recoveryVoteTimestamp"
-    >,
-  ) => Promise<string | null>
+  contextError: string | null
+  setContextError: (error: string | null) => void
+  updateUserProfile: (updates: Partial<UserProfile>) => void
+  addContact: (
+    contactData: Omit<Contact, "contactId" | "userId" | "addedAt" | "status" | "lastNotified">,
+  ) => Promise<void> // Simplified for addContactAndSendInvitation
   updateContact: (contactId: string, updates: Partial<Omit<Contact, "contactId" | "userId">>) => Promise<void>
   removeContact: (contactId: string) => Promise<void>
-  logActivity: (
-    eventType: EventType,
-    details: Record<string, any>,
-    systemSource?: string,
-    customTimestamp?: string,
-  ) => Promise<void>
-  updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>
-  sendAlertsToContacts: (compromisedSystems: string[], alertType?: EventType) => Promise<void>
-  initiateRecovery: () => Promise<void>
-  completeRecovery: () => Promise<void>
-  simulateBreachByContactFlag: () => Promise<void>
-  flagSuspicionByContact: (contactId: string, reason: string) => Promise<void>
-  reportSuspicionByEmergencyContact: (
-    reportedPlatforms: string[],
-    description?: string,
-    reportingContactId?: string,
+  addActivityLogEntry: (entry: Omit<ActivityLogEntry, "activityId" | "userId" | "timestamp" | "systemSource">) => void
+  setContacts: (contacts: Contact[]) => void // Keep for direct manipulation if needed
+  currentBreachReport: BreachReport | null
+  setCurrentBreachReport: (report: BreachReport | null) => void
+  reportSuspicion: (report: BreachReport) => void
+  confirmCompromiseAfterReview: (isPhoneIssue?: boolean, phoneIssueType?: string) => void
+  resolveAsFalseAlarm: () => void // Renamed from dismissAsFalseAlarm for clarity
+  initiateRecovery: () => void
+  sendAlertsToContacts: (affectedPlatforms?: string[]) => boolean // Added affectedPlatforms
+  simulateBreachByContactFlag: (contactName: string, isPhoneBreach?: boolean, phoneIssueType?: string) => void
+  resetSessionData: () => void
+  setPhoneNumber: (phoneNumber: string) => void
+  // New functions from manage-contacts page
+  addContactAndSendInvitation: (
+    contactData: Pick<Contact, "name" | "contactMethod" | "type" | "relationship">,
   ) => Promise<void>
   resendInvitation: (contactId: string) => Promise<void>
   simulateAcceptInvitation: (contactId: string) => Promise<void>
   checkAndExpireInvitations: () => void
-  resetSessionData: () => void
-  initiateSecurityReview: () => Promise<void>
-  confirmCompromiseAfterReview: () => Promise<void>
-  dismissAsFalseAlarm: (messageToContact?: string) => Promise<void>
+  // New functions from security-review page
+  initiateSecurityReview: () => void
+  dismissAsFalseAlarm: (messageToContact?: string) => Promise<void> // For false alarm screen
+  // New functions from recovery-process page
   sendRecoveryMessage: (message: string, additionalContext?: string) => Promise<void>
-  simulateContactRecoveryVotes: () => void // For demo
+  simulateContactRecoveryVotes: () => Promise<void>
+  completeRecovery: () => Promise<void>
+  logActivity: (eventType: EventType, details: Record<string, any>, systemSource?: string) => Promise<void> // For general logging
+  reportSuspicionByEmergencyContact: (
+    platforms: string[],
+    description: string,
+    reportingContactName: string,
+  ) => Promise<void>
 }
 
-const ReclaimContext = createContext<ReclaimContextState | undefined>(undefined)
+const initialUserProfile: UserProfile = {
+  ...DEMO_USER_PROFILE, // DEMO_USER_PROFILE already has phoneNumber
+}
+
+const ReclaimContext = createContext<ReclaimContextType | undefined>(undefined)
 
 export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([])
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const initializeSession = useCallback((name = "New User") => {
-    const now = new Date().toISOString()
-    const newUserId = `local_user_${Date.now()}`
-    setUserProfile({
-      userId: newUserId,
-      name: name,
-      authMethod: "local_session",
-      createdAt: now,
-      currentStatus: "safe",
-      recoveryStage: null,
-      lastVerification: now,
-    })
-    setContacts([])
-    setActivityLog([
-      {
-        activityId: `act_${Date.now()}`,
-        userId: newUserId,
-        eventType: "user_onboarded",
-        timestamp: now,
-        details: { name },
-        systemSource: "ReclaimClient",
-      },
-    ])
-    setNotifications([])
-    setError(null)
-    setIsLoading(false)
-  }, [])
-
-  useEffect(() => {
-    if (!userProfile) {
-      initializeSession()
-    }
-  }, [initializeSession, userProfile])
+  const [isLoading, setIsLoading] = useState(true)
+  const [contextError, setContextError] = useState<string | null>(null)
+  const [currentBreachReport, setCurrentBreachReport] = useState<BreachReport | null>(null)
 
   const logActivity = useCallback(
-    async (
-      eventType: EventType,
-      details: Record<string, any>,
-      systemSource = "ReclaimClient",
-      customTimestamp?: string,
-    ) => {
+    async (eventType: EventType, details: Record<string, any>, systemSource = "ReclaimAppClient") => {
       if (!userProfile) return
-
       const newEntry: ActivityLogEntry = {
         activityId: `act_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         userId: userProfile.userId,
-        eventType: eventType,
-        timestamp: customTimestamp || new Date().toISOString(),
-        details: details,
-        systemSource: systemSource,
+        eventType,
+        timestamp: new Date().toISOString(),
+        details,
+        systemSource,
       }
-      setActivityLog((prev) =>
-        [newEntry, ...prev].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
-      )
+      setActivityLog((prev) => [newEntry, ...prev])
     },
     [userProfile],
   )
 
-  const addContactAndSendInvitation = useCallback(
-    async (
-      newContactData: Omit<
-        Contact,
-        | "contactId"
-        | "userId"
-        | "addedAt"
-        | "status"
-        | "lastNotified"
-        | "invitationSentAt"
-        | "invitationExpiresAt"
-        | "recoveryVoteStatus"
-        | "recoveryVoteTimestamp"
-      >,
-    ): Promise<string | null> => {
-      if (!userProfile) {
-        setError("User profile not loaded. Cannot add contact.")
-        return null
-      }
-      setIsLoading(true)
-      const now = new Date()
-      const invitationSentAt = now.toISOString()
-      const invitationExpiresAt = new Date(new Date(now).setDate(now.getDate() + INVITATION_EXPIRY_DAYS)).toISOString()
+  useEffect(() => {
+    const loadData = () => {
+      try {
+        const storedUserProfile = localStorage.getItem("userProfile")
+        const storedContacts = localStorage.getItem("contacts")
+        const storedActivityLog = localStorage.getItem("activityLog")
 
-      const newContact: Contact = {
-        contactId: `con_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        userId: userProfile.userId,
-        name: newContactData.name,
-        contactMethod: newContactData.contactMethod,
-        type: newContactData.type,
-        relationship: newContactData.relationship,
-        addedAt: invitationSentAt,
-        status: "pending_invitation",
-        lastNotified: null,
-        invitationSentAt: invitationSentAt,
-        invitationExpiresAt: invitationExpiresAt,
-        recoveryVoteStatus: "pending",
-        recoveryVoteTimestamp: null,
+        if (storedUserProfile) {
+          setUserProfile(JSON.parse(storedUserProfile))
+        } else {
+          setUserProfile(initialUserProfile)
+        }
+
+        if (storedContacts) {
+          setContacts(JSON.parse(storedContacts))
+        } else {
+          setContacts(DEMO_CONTACTS)
+        }
+
+        if (storedActivityLog) {
+          setActivityLog(JSON.parse(storedActivityLog))
+        } else {
+          setActivityLog(DEMO_ACTIVITY_LOG)
+        }
+      } catch (error) {
+        console.error("Error loading data from localStorage:", error)
+        setContextError("Failed to load session data. Please try clearing your browser cache or resetting the session.")
+        setUserProfile(initialUserProfile)
+        setContacts(DEMO_CONTACTS)
+        setActivityLog(DEMO_ACTIVITY_LOG)
+      } finally {
+        setIsLoading(false)
       }
-      setContacts((prev) => [...prev, newContact].sort((a, b) => a.name.localeCompare(b.name)))
-      await logActivity("contact_added", {
-        contactId: newContact.contactId,
-        name: newContact.name,
-        method: newContact.contactMethod,
-        relationship: newContact.relationship,
+    }
+    loadData()
+  }, [])
+
+  const saveData = useCallback(() => {
+    if (isLoading) return // Don't save while initially loading
+    if (userProfile) localStorage.setItem("userProfile", JSON.stringify(userProfile))
+    localStorage.setItem("contacts", JSON.stringify(contacts))
+    localStorage.setItem("activityLog", JSON.stringify(activityLog))
+  }, [userProfile, contacts, activityLog, isLoading])
+
+  useEffect(() => {
+    saveData()
+  }, [saveData])
+
+  const updateUserProfile = (updates: Partial<UserProfile>) => {
+    setUserProfile((prev) => {
+      if (!prev) return null
+      const updatedProfile = { ...prev, ...updates }
+      return updatedProfile
+    })
+  }
+
+  const addContactAndSendInvitation = async (
+    contactData: Pick<Contact, "name" | "contactMethod" | "type" | "relationship">,
+  ) => {
+    if (!userProfile) return
+    const now = new Date()
+    const newContact: Contact = {
+      ...contactData,
+      contactId: `con_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+      userId: userProfile.userId,
+      addedAt: now.toISOString(),
+      status: "pending_invitation",
+      lastNotified: null,
+      invitationSentAt: now.toISOString(),
+      invitationExpiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days expiry
+    }
+    setContacts((prev) => [...prev, newContact])
+    await logActivity(EventType.INVITATION_SENT, { contactName: newContact.name, method: newContact.contactMethod })
+  }
+
+  const updateContactState = async (contactId: string, updates: Partial<Omit<Contact, "contactId" | "userId">>) => {
+    setContacts((prev) => prev.map((c) => (c.contactId === contactId ? { ...c, ...updates, userId: c.userId } : c)))
+    // Consider logging specific updates if needed
+  }
+
+  const removeContactState = async (contactId: string) => {
+    const contactToRemove = contacts.find((c) => c.contactId === contactId)
+    if (contactToRemove) {
+      // Instead of filtering out, mark as 'removed' if you want to keep a record
+      // For now, let's filter out for simplicity as per original behavior in manage-contacts
+      setContacts((prev) => prev.filter((c) => c.contactId !== contactId))
+      await logActivity(EventType.CONTACT_REMOVED, { contactName: contactToRemove.name })
+    }
+  }
+
+  const resendInvitation = async (contactId: string) => {
+    const contact = contacts.find((c) => c.contactId === contactId)
+    if (contact && contact.status === "pending_invitation") {
+      const now = new Date()
+      await updateContactState(contactId, {
+        invitationSentAt: now.toISOString(),
+        invitationExpiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       })
-      await logActivity(
-        "invitation_sent",
-        {
-          contactId: newContact.contactId,
-          name: newContact.name,
-          method: newContact.contactMethod,
-          expiresAt: invitationExpiresAt,
-        },
-        "ReclaimClient",
-        invitationSentAt,
-      )
-      setIsLoading(false)
-      console.log(`Simulated invitation sent to ${newContact.name} via ${newContact.contactMethod}`)
-      return newContact.contactId
-    },
-    [userProfile, logActivity],
-  )
+      await logActivity(EventType.INVITATION_RESENT, { contactName: contact.name })
+    }
+  }
 
-  const resendInvitation = useCallback(
-    async (contactId: string) => {
-      const contact = contacts.find((c) => c.contactId === contactId)
-      if (!contact || contact.status !== "pending_invitation") {
-        setError("Contact not found or invitation not pending.")
-        return
-      }
-      setIsLoading(true)
-      const now = new Date()
-      const newInvitationSentAt = now.toISOString()
-      const newInvitationExpiresAt = new Date(
-        new Date(now).setDate(now.getDate() + INVITATION_EXPIRY_DAYS),
-      ).toISOString()
-
-      setContacts((prev) =>
-        prev.map((c) =>
-          c.contactId === contactId
-            ? { ...c, invitationSentAt: newInvitationSentAt, invitationExpiresAt: newInvitationExpiresAt }
-            : c,
-        ),
-      )
-      await logActivity(
-        "invitation_resent",
-        {
-          contactId: contact.contactId,
-          name: contact.name,
-          method: contact.contactMethod,
-          expiresAt: newInvitationExpiresAt,
-        },
-        "ReclaimClient",
-        newInvitationSentAt,
-      )
-      console.log(`Simulated invitation RESENT to ${contact.name} via ${contact.contactMethod}`)
-      setIsLoading(false)
-    },
-    [contacts, logActivity],
-  )
-
-  const simulateAcceptInvitation = useCallback(
-    async (contactId: string) => {
-      const contact = contacts.find((c) => c.contactId === contactId)
-      if (!contact || contact.status !== "pending_invitation") {
-        setError("Contact not found or invitation not pending/expired.")
-        return
-      }
-      if (contact.invitationExpiresAt && new Date(contact.invitationExpiresAt) < new Date()) {
-        setError("Invitation has expired. Please resend.")
-        setContacts((prev) => prev.map((c) => (c.contactId === contactId ? { ...c, status: "removed" } : c)))
-        await logActivity("invitation_expired", { contactId: contact.contactId, name: contact.name })
-        return
-      }
-
-      setIsLoading(true)
-      const acceptedAt = new Date().toISOString()
-      setContacts((prev) =>
-        prev.map((c) =>
-          c.contactId === contactId
-            ? {
-                ...c,
-                status: "active",
-                invitationAcceptedAt: acceptedAt,
-                invitationExpiresAt: null,
-              }
-            : c,
-        ),
-      )
-      await logActivity(
-        "invitation_accepted",
-        { contactId: contact.contactId, name: contact.name },
-        "ContactAction",
-        acceptedAt,
-      )
-      await logActivity("contact_activated", { contactId: contact.contactId, name: contact.name }, "System", acceptedAt)
-      setIsLoading(false)
-    },
-    [contacts, logActivity],
-  )
+  const simulateAcceptInvitation = async (contactId: string) => {
+    const contact = contacts.find((c) => c.contactId === contactId)
+    if (contact && contact.status === "pending_invitation") {
+      await updateContactState(contactId, {
+        status: "active",
+        invitationAcceptedAt: new Date().toISOString(),
+        lastNotified: new Date().toISOString(), // Mark as notified upon activation
+      })
+      await logActivity(EventType.INVITATION_ACCEPTED, { contactName: contact.name })
+      await logActivity(EventType.CONTACT_ACTIVATED, { contactName: contact.name })
+    }
+  }
 
   const checkAndExpireInvitations = useCallback(() => {
     const now = new Date()
@@ -294,576 +213,336 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
         contact.invitationExpiresAt &&
         new Date(contact.invitationExpiresAt) < now
       ) {
-        changed = true
-        logActivity("invitation_expired", { contactId: contact.contactId, name: contact.name }, "SystemCron")
-        return { ...contact, status: "removed" }
+        // Optionally log expiry here or let manage-contacts handle display
+        // For now, just update status if needed, or rely on display logic
+        // To make it explicit, we can add an "expired" status or just let UI handle it.
+        // The current UI logic in manage-contacts handles display of expired.
+        // No state change needed here unless we want a specific "expired" status.
+        changed = true // Just to indicate a check happened
       }
       return contact
     })
     if (changed) {
-      setContacts(updatedContacts)
+      // setContacts(updatedContacts); // Only if actual status changes
+      console.log("Checked for expired invitations.")
     }
-  }, [contacts, logActivity])
+  }, [contacts])
 
   useEffect(() => {
-    const intervalId = setInterval(
-      () => {
-        checkAndExpireInvitations()
-      },
-      60 * 60 * 1000,
-    )
-    return () => clearInterval(intervalId)
+    checkAndExpireInvitations()
+    const interval = setInterval(checkAndExpireInvitations, 60 * 60 * 1000) // Check every hour
+    return () => clearInterval(interval)
   }, [checkAndExpireInvitations])
 
-  const updateContact = useCallback(
-    async (contactId: string, updates: Partial<Omit<Contact, "contactId" | "userId">>) => {
-      setIsLoading(true)
-      let updatedContactName = ""
-      setContacts((prev) =>
-        prev
-          .map((c) => {
-            if (c.contactId === contactId) {
-              const updated = { ...c, ...updates }
-              updatedContactName = updated.name
-              return updated
-            }
-            return c
-          })
-          .sort((a, b) => a.name.localeCompare(b.name)),
-      )
-      if (updatedContactName) {
-        await logActivity("contact_updated", { contactId, name: updatedContactName, ...updates })
-      }
-      setIsLoading(false)
-    },
-    [logActivity],
-  )
-
-  const removeContact = useCallback(
-    async (contactId: string) => {
-      setIsLoading(true)
-      const contactToRemove = contacts.find((c) => c.contactId === contactId)
-      setContacts((prev) => prev.filter((c) => c.contactId !== contactId))
-      if (contactToRemove) {
-        await logActivity("contact_removed", {
-          contactId,
-          name: contactToRemove.name,
-          previousStatus: contactToRemove.status,
-        })
-      }
-      setIsLoading(false)
-    },
-    [contacts, logActivity],
-  )
-
-  const updateUserProfile = useCallback(
-    async (updates: Partial<UserProfile>) => {
-      if (!userProfile) return
-      setIsLoading(true)
-      setUserProfile((prev) => (prev ? { ...prev, ...updates } : null))
-      setIsLoading(false)
-    },
-    [userProfile],
-  )
-
-  const sendAlertsToContacts = useCallback(
-    async (compromisedSystems: string[], alertType: EventType = "contacts_alerted") => {
-      if (!userProfile) return
-      setIsLoading(true)
-      const activeContacts = contacts.filter((c) => c.status === "active")
-      if (activeContacts.length === 0) {
-        setError("No active contacts to alert.")
-        setIsLoading(false)
-        return
-      }
-
-      const now = new Date().toISOString()
-      const newNotifs: Notification[] = activeContacts.map((contact) => {
-        const message = `Security alert: ${userProfile.name}'s identity may be compromised.
-Verified: ${formatShortTimestamp(userProfile.lastVerification)}
-Affected Systems: ${compromisedSystems.join(", ")}
-Do not trust communications from these systems.
-Signed: ReclaimSystemSig` // Changed from ReclaimClientSig for system alerts
-        return {
-          notificationId: `notif_${Date.now()}_${contact.contactId}`,
-          userId: userProfile.userId,
-          contactId: contact.contactId,
-          messageContent: message,
-          sentAt: now,
-          deliveryStatus: "pending",
-          notificationType: "breach_alert", // Keep as breach_alert for now, or make dynamic
-        }
-      })
-
-      setNotifications((prev) =>
-        [...newNotifs, ...prev].sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime()),
-      )
-      await logActivity(
-        alertType, // Use the passed alertType
-        { count: newNotifs.length, systems: compromisedSystems },
-        "ReclaimSystem", // Alerts come from the system
-        now,
-      )
-
-      const contactIdsToUpdate = activeContacts.map((c) => c.contactId)
-      setContacts((prev) =>
-        prev.map((c) => (contactIdsToUpdate.includes(c.contactId) ? { ...c, lastNotified: now } : c)),
-      )
-
-      newNotifs.forEach((notif, index) => {
-        setTimeout(
-          () => {
-            setNotifications((prevN) =>
-              prevN.map((n) =>
-                n.notificationId === notif.notificationId
-                  ? { ...n, deliveryStatus: "sent", sentAt: new Date().toISOString() }
-                  : n,
-              ),
-            )
-            setTimeout(
-              () => {
-                const finalStatus = Math.random() > 0.2 ? "delivered" : "failed" // Higher chance of delivery
-                setNotifications((prevN) =>
-                  prevN.map((n) =>
-                    n.notificationId === notif.notificationId
-                      ? { ...n, deliveryStatus: finalStatus, sentAt: new Date().toISOString() }
-                      : n,
-                  ),
-                )
-                if (finalStatus === "delivered" && Math.random() > 0.4) {
-                  // Higher chance of read
-                  setTimeout(
-                    () => {
-                      setNotifications((prevN) =>
-                        prevN.map((n) =>
-                          n.notificationId === notif.notificationId
-                            ? { ...n, deliveryStatus: "read", sentAt: new Date().toISOString() }
-                            : n,
-                        ),
-                      )
-                    },
-                    2000 + Math.random() * 3000,
-                  )
-                }
-              },
-              1500 + Math.random() * 2000,
-            )
-          },
-          500 * (index + 1), // Faster simulation
-        )
-      })
-      setIsLoading(false)
-    },
-    [userProfile, contacts, logActivity],
-  )
-
-  const sendRecoveryMessage = useCallback(
-    async (message: string, additionalContext?: string) => {
-      if (!userProfile) {
-        setError("User profile not loaded.")
-        return
-      }
-      setIsLoading(true)
-      const activeContacts = contacts.filter((c) => c.status === "active")
-      if (activeContacts.length === 0) {
-        setError("No active contacts to send recovery message to.")
-        setIsLoading(false)
-        return
-      }
-
-      const now = new Date().toISOString()
-      const fullMessage = `${message}${additionalContext ? `\n\nContext: ${additionalContext}` : ""}`
-
-      const newNotifs: Notification[] = activeContacts.map((contact) => ({
-        notificationId: `notif_recmsg_${Date.now()}_${contact.contactId}`,
-        userId: userProfile.userId,
-        contactId: contact.contactId,
-        messageContent: fullMessage,
-        sentAt: now,
-        deliveryStatus: "pending",
-        notificationType: "recovery_update", // New type for specific recovery messages
-      }))
-
-      setNotifications((prev) =>
-        [...newNotifs, ...prev].sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime()),
-      )
-      await logActivity(
-        "recovery_message_composed",
-        {
-          count: newNotifs.length,
-          messagePreview: message.substring(0, 50),
-          hasAdditionalContext: !!additionalContext,
-        },
-        "UserAction",
-        now,
-      )
-      // Simulate sending (similar to sendAlertsToContacts)
-      newNotifs.forEach((notif, index) => {
-        setTimeout(
-          () => {
-            setNotifications((prevN) =>
-              prevN.map((n) => (n.notificationId === notif.notificationId ? { ...n, deliveryStatus: "sent" } : n)),
-            )
-            setTimeout(
-              () => {
-                setNotifications((prevN) =>
-                  prevN.map((n) =>
-                    n.notificationId === notif.notificationId ? { ...n, deliveryStatus: "delivered" } : n,
-                  ),
-                )
-              },
-              1000 + Math.random() * 1000,
-            )
-          },
-          500 * (index + 1),
-        )
-      })
-
-      setIsLoading(false)
-      alert("Recovery message sent to active contacts.")
-    },
-    [userProfile, contacts, logActivity],
-  )
-
-  const initiateRecovery = useCallback(async () => {
+  const reportSuspicion = (report: BreachReport) => {
     if (!userProfile) return
-    setUserProfile((up) => (up ? { ...up, currentStatus: "recovering", recoveryStage: "alerting_contacts" } : null))
-    await logActivity("recovery_initiated", { method: "user_action_or_system" })
-    // Simulate moving to next stage after a delay
-    setTimeout(async () => {
-      setUserProfile((up) => (up ? { ...up, recoveryStage: "awaiting_social_verification" } : null))
-      await logActivity("social_voting_initiated", {}, "System")
-    }, 5000) // Simulate 5 seconds for alerts to "send"
-  }, [userProfile, logActivity, setUserProfile])
-
-  const completeRecovery = useCallback(async () => {
-    if (!userProfile) return
-
-    setUserProfile((up) =>
-      up
-        ? {
-            ...up,
-            currentStatus: "recovered",
-            recoveryStage: null,
-            lastVerification: new Date().toISOString(),
-            breachTriggerDetails: undefined,
-            reviewRequestDetails: undefined,
-          }
-        : null,
-    )
-    await logActivity("recovery_completed", { method: "simulated_social_consensus" })
-  }, [userProfile, logActivity, setUserProfile])
-
-  const flagSuspicionByContact = useCallback(
-    async (contactId: string, reason: string) => {
-      if (!userProfile) {
-        setError("User profile not loaded.")
-        return
-      }
-      const flaggingContact = contacts.find((c) => c.contactId === contactId)
-      if (!flaggingContact) {
-        setError(`Contact with ID ${contactId} not found.`)
-        return
-      }
-
-      const triggerTimestamp = new Date().toISOString()
-      const newBreachTriggerDetails: UserProfile["breachTriggerDetails"] = {
-        type: "contact_flag",
-        contactName: flaggingContact.name,
-        reason: reason,
-        timestamp: triggerTimestamp,
-      }
-
-      setUserProfile((up) =>
-        up
-          ? {
-              ...up,
-              currentStatus: "compromised",
-              recoveryStage: null,
-              breachTriggerDetails: newBreachTriggerDetails,
-              reviewRequestDetails: undefined,
-            }
-          : null,
-      )
-
-      await logActivity(
-        "contact_flagged_suspicion",
-        {
-          contactId: flaggingContact.contactId,
-          contactName: flaggingContact.name,
-          reason: reason,
-        },
-        "ContactInteraction",
-        triggerTimestamp,
-      )
-      setError(null)
-    },
-    [userProfile, contacts, logActivity, setError, setUserProfile],
-  )
-
-  const simulateBreachByContactFlag = useCallback(async () => {
-    if (!userProfile || contacts.length === 0) {
-      setError("Cannot simulate breach: No user profile or no contacts.")
-      return
+    const reviewDetails: ReviewRequestDetails = {
+      reportingContactName: "User Reported",
+      reportedPlatforms: [report.platform],
+      reportDescription: report.description,
+      timestamp: new Date().toISOString(),
+      isPhoneIssue: report.isPhoneIssue,
+      phoneIssueType: report.phoneIssueType,
     }
+    updateUserProfile({
+      currentStatus: "under_review",
+      reviewRequestDetails: reviewDetails,
+    })
+    setCurrentBreachReport(report)
+    logActivity(
+      report.isPhoneIssue
+        ? EventType.PHONE_SECURITY_ISSUE_REPORTED_BY_CONTACT
+        : EventType.SUSPICION_REPORTED_BY_CONTACT,
+      {
+        platform: report.platform,
+        description: report.description,
+        ...(report.isPhoneIssue && { phoneIssueType: report.phoneIssueType }),
+        source: "self_report_dashboard",
+      },
+    )
+    setContextError(null)
+  }
+
+  const confirmCompromiseAfterReview = (isPhoneIssue?: boolean, phoneIssueType?: string) => {
+    if (!userProfile) return
+    const breachDetails = {
+      type: "user_confirmed_review" as const,
+      reason: isPhoneIssue
+        ? `Phone issue confirmed: ${phoneIssueType || "General"}`
+        : "User confirmed compromise during review",
+      timestamp: new Date().toISOString(),
+      reportedPlatforms: userProfile.reviewRequestDetails?.reportedPlatforms || ["Unknown"],
+      isPhoneIssue: isPhoneIssue,
+      phoneIssueType: phoneIssueType,
+    }
+    updateUserProfile({
+      currentStatus: "compromised",
+      breachTriggerDetails: breachDetails,
+      recoveryStage: "alerting_contacts", // Start recovery process
+    })
+    logActivity(isPhoneIssue ? EventType.PHONE_COMPROMISE_CONFIRMED : EventType.SECURITY_REVIEW_COMPROMISE_CONFIRMED, {
+      reason: breachDetails.reason,
+      platforms: breachDetails.reportedPlatforms,
+      ...(isPhoneIssue && { phoneIssueType: phoneIssueType }),
+    })
+    setContextError(null)
+    sendAlertsToContacts(breachDetails.reportedPlatforms)
+  }
+
+  const resolveAsFalseAlarm = () => {
+    // This is the old one, new one is dismissAsFalseAlarm
+    if (!userProfile) return
+    const reportingContactName = userProfile.reviewRequestDetails?.reportingContactName
+    updateUserProfile({
+      currentStatus: "safe",
+      reviewRequestDetails: undefined,
+      breachTriggerDetails: undefined,
+    })
+    logActivity(EventType.SECURITY_REVIEW_FALSE_ALARM_DISMISSED, {
+      resolution: "User marked as false alarm",
+      notifiedContact: reportingContactName || "N/A",
+    })
+    setCurrentBreachReport(null)
+    setContextError(null)
+  }
+
+  const initiateRecovery = () => {
+    if (!userProfile || userProfile.currentStatus !== "compromised") return
+    updateUserProfile({ currentStatus: "recovering", recoveryStage: "alerting_contacts" })
+    logActivity(
+      userProfile.breachTriggerDetails?.isPhoneIssue
+        ? EventType.PHONE_RECOVERY_INITIATED
+        : EventType.RECOVERY_INITIATED,
+      { stage: "alerting_contacts" },
+    )
+    setContextError(null)
+    // Alerts should have been sent when compromise was confirmed.
+    // If not, or if re-alerting is desired, call sendAlertsToContacts() here.
+  }
+
+  const sendAlertsToContacts = (affectedPlatforms: string[] = ["Unknown"]): boolean => {
     const activeContacts = contacts.filter((c) => c.status === "active")
     if (activeContacts.length === 0) {
-      setError("Cannot simulate breach: No active contacts.")
-      return
+      console.warn("No active contacts to alert.")
+      setContextError("No active contacts to alert.")
+      return false
     }
-    const randomContact = activeContacts[Math.floor(Math.random() * activeContacts.length)]
-    const randomReason = `Detected unusual activity on ${
-      ["Social Media", "Email Account", "Banking App"][Math.floor(Math.random() * 3)]
-    }.`
-
-    await flagSuspicionByContact(randomContact.contactId, randomReason)
-  }, [userProfile, contacts, setError, flagSuspicionByContact])
-
-  const reportSuspicionByEmergencyContact = useCallback(
-    async (reportedPlatforms: string[], description?: string, reportingContactId?: string) => {
-      if (!userProfile) {
-        setError("User profile not loaded. Cannot report suspicion.")
-        return
-      }
-      setIsLoading(true)
-      const reportTimestamp = new Date().toISOString()
-      const reportingContact = contacts.find((c) => c.contactId === reportingContactId)
-
-      const reviewDetails: ReviewRequestDetails = {
-        reportingContactName: reportingContact?.name || "Emergency Contact",
-        reportingContactId: reportingContactId,
-        reportingContactRelationship: reportingContact?.relationship,
-        reportedPlatforms,
-        reportDescription: description,
-        timestamp: reportTimestamp,
-      }
-
-      setUserProfile((up) =>
-        up
-          ? {
-              ...up,
-              currentStatus: "under_review",
-              recoveryStage: null,
-              reviewRequestDetails: reviewDetails,
-              breachTriggerDetails: undefined,
-            }
-          : null,
+    activeContacts.forEach((contact) => {
+      console.log(
+        `Simulating alert to ${contact.name} via ${contact.contactMethod} about ${affectedPlatforms.join(", ")}`,
       )
-
-      await logActivity("suspicion_reported_by_contact", { ...reviewDetails }, "ContactReport", reportTimestamp)
-      setIsLoading(false)
-    },
-    [userProfile, contacts, logActivity, setError, setIsLoading, setUserProfile],
-  )
-
-  const initiateSecurityReview = useCallback(async () => {
-    if (!userProfile || userProfile.currentStatus !== "under_review") {
-      setError("No active security review to initiate.")
-      return
-    }
-    await logActivity("security_review_initiated", {
-      reviewDetails: userProfile.reviewRequestDetails,
+      updateContactState(contact.contactId, { lastNotified: new Date().toISOString() })
     })
-  }, [userProfile, logActivity])
+    logActivity(EventType.CONTACTS_ALERTED, {
+      count: activeContacts.length,
+      contactIds: activeContacts.map((c) => c.contactId),
+      platforms: affectedPlatforms,
+    })
+    setContextError(null)
+    return true
+  }
 
-  const confirmCompromiseAfterReview = useCallback(async () => {
-    if (!userProfile || !userProfile.reviewRequestDetails) {
-      setError("Cannot confirm compromise: No review details found.")
+  const simulateBreachByContactFlag = (
+    contactName: string,
+    isPhoneBreach = false,
+    phoneIssueType = "Unknown SIM issue",
+  ) => {
+    if (!userProfile) return
+    const reportingContact = contacts.find((c) => c.name === contactName) || contacts[0]
+    if (!reportingContact) {
+      setContextError("Cannot simulate: No contacts available for reporting.")
       return
     }
-    setIsLoading(true)
-    const reviewDetails = userProfile.reviewRequestDetails
-    const now = new Date().toISOString()
-
-    await logActivity("security_review_identity_verified", { method: "video_passphrase" }, "UserAction", now)
-
-    setUserProfile((up) =>
-      up
-        ? {
-            ...up,
-            currentStatus: "compromised", // Will be changed to 'recovering' by initiateRecovery
-            recoveryStage: "alerting_contacts",
-            breachTriggerDetails: {
-              type: "user_confirmed_review",
-              contactName: reviewDetails.reportingContactName,
-              reason: reviewDetails.reportDescription || "User confirmed reported suspicion.",
-              timestamp: now,
-              reportedPlatforms: reviewDetails.reportedPlatforms,
-            },
-            lastVerification: now,
-            reviewRequestDetails: undefined,
-          }
-        : null,
-    )
-
-    await logActivity(
-      "security_review_compromise_confirmed",
+    const reviewDetails: ReviewRequestDetails = {
+      reportingContactName: reportingContact.name,
+      reportingContactId: reportingContact.contactId,
+      reportingContactRelationship: reportingContact.relationship,
+      reportedPlatforms: isPhoneBreach ? ["Phone Security"] : ["Unknown Platform"],
+      reportDescription: isPhoneBreach
+        ? `Contact reported potential ${phoneIssueType}.`
+        : "Contact reported suspicious activity.",
+      timestamp: new Date().toISOString(),
+      isPhoneIssue: isPhoneBreach,
+      phoneIssueType: isPhoneBreach ? phoneIssueType : undefined,
+    }
+    updateUserProfile({
+      currentStatus: "under_review",
+      reviewRequestDetails: reviewDetails,
+    })
+    logActivity(
+      isPhoneBreach ? EventType.PHONE_SECURITY_ISSUE_REPORTED_BY_CONTACT : EventType.CONTACT_FLAGGED_SUSPICION,
       {
-        originalReportTimestamp: reviewDetails.timestamp,
-        reportedBy: reviewDetails.reportingContactName,
-        platforms: reviewDetails.reportedPlatforms,
+        contactName: reportingContact.name,
+        relationship: reportingContact.relationship,
+        platform: isPhoneBreach ? "Phone Security" : "Unknown Platform",
+        ...(isPhoneBreach && { phoneIssueType: phoneIssueType }),
       },
-      "UserAction",
-      now,
     )
+    setContextError(null)
+  }
 
-    await sendAlertsToContacts(
-      reviewDetails.reportedPlatforms || ["Unknown System"],
-      "recovery_alerts_sent_to_contacts",
-    )
-    await initiateRecovery() // This will set status to 'recovering' and stage to 'alerting_contacts'
-
-    setIsLoading(false)
-  }, [userProfile, logActivity, setIsLoading, setError, sendAlertsToContacts, initiateRecovery])
-
-  const dismissAsFalseAlarm = useCallback(
-    async (messageToContact?: string) => {
-      if (!userProfile || !userProfile.reviewRequestDetails) {
-        setError("Cannot dismiss: No review details found.")
-        return
-      }
-      setIsLoading(true)
-      const reviewDetails = userProfile.reviewRequestDetails
-      const now = new Date().toISOString()
-
-      setUserProfile((up) =>
-        up
-          ? {
-              ...up,
-              currentStatus: "safe",
-              recoveryStage: null,
-              reviewRequestDetails: undefined,
-              lastVerification: now,
-            }
-          : null,
-      )
-
-      await logActivity(
-        "security_review_false_alarm_dismissed",
-        {
-          originalReportTimestamp: reviewDetails.timestamp,
-          reportedBy: reviewDetails.reportingContactName,
-          messageSentToContact: !!messageToContact,
-        },
-        "UserAction",
-        now,
-      )
-
-      if (reviewDetails.reportingContactId) {
-        const reportingContact = contacts.find((c) => c.contactId === reviewDetails.reportingContactId)
-        if (reportingContact && userProfile) {
-          // Ensure userProfile is not null for name
-          const notificationMessage = `The security concern you reported for ${userProfile.name} on ${formatShortTimestamp(reviewDetails.timestamp)} has been reviewed and resolved as a false alarm. ${messageToContact ? `Message from ${userProfile.name}: "${messageToContact}"` : ""} Thank you for your vigilance.`
-
-          const newNotif: Notification = {
-            notificationId: `notif_resolve_${Date.now()}_${reportingContact.contactId}`,
-            userId: userProfile.userId,
-            contactId: reportingContact.contactId,
-            messageContent: notificationMessage,
-            sentAt: now,
-            deliveryStatus: "pending",
-            notificationType: "review_resolution",
-          }
-          setNotifications((prev) =>
-            [newNotif, ...prev].sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime()),
-          )
-          setTimeout(() => {
-            setNotifications((prevNots) =>
-              prevNots.map((n) =>
-                n.notificationId === newNotif.notificationId ? { ...n, deliveryStatus: "sent" } : n,
-              ),
-            )
-            setTimeout(() => {
-              setNotifications((prevNots) =>
-                prevNots.map((n) =>
-                  n.notificationId === newNotif.notificationId ? { ...n, deliveryStatus: "delivered" } : n,
-                ),
-              )
-            }, 2000)
-          }, 1000)
-
-          await logActivity(
-            "security_review_contact_notified_of_resolution",
-            {
-              contactId: reportingContact.contactId,
-              contactName: reportingContact.name,
-              resolution: "false_alarm",
-            },
-            "System",
-            now,
-          )
-        }
-      }
-      setIsLoading(false)
-    },
-    [userProfile, contacts, logActivity, setIsLoading, setError, setNotifications],
-  )
-
-  const resetSessionData = useCallback(() => {
+  const resetSessionData = () => {
     setIsLoading(true)
-    const currentName = userProfile?.name === "New User" || !userProfile?.name ? "New User" : userProfile.name
-    initializeSession(currentName)
-    console.log("Session data has been reset.")
-  }, [initializeSession, userProfile])
-
-  const simulateContactRecoveryVotes = useCallback(() => {
-    if (
-      !userProfile ||
-      userProfile.currentStatus !== "recovering" ||
-      userProfile.recoveryStage !== "awaiting_social_verification"
-    ) {
-      console.warn("Cannot simulate votes: Not in correct recovery stage.")
-      return
+    const freshUserProfile = {
+      ...DEMO_USER_PROFILE,
+      phoneNumber: userProfile?.phoneNumber || DEMO_USER_PROFILE.phoneNumber,
     }
-    setIsLoading(true)
+    setUserProfile(freshUserProfile)
+    setContacts(DEMO_CONTACTS)
+    setActivityLog(DEMO_ACTIVITY_LOG)
+    setCurrentBreachReport(null)
+    setContextError(null)
+    // localStorage.setItem("userProfile", JSON.stringify(freshUserProfile)); // Done by useEffect
+    // localStorage.setItem("contacts", JSON.stringify(DEMO_CONTACTS));
+    // localStorage.setItem("activityLog", JSON.stringify(DEMO_ACTIVITY_LOG));
+    setIsLoading(false) // Set loading to false after reset
+    logActivity(EventType.SYSTEM_CHECK_COMPLETED, { action: "Session data reset" })
+  }
+
+  const setPhoneNumber = (phoneNumber: string) => {
+    if (userProfile) {
+      updateUserProfile({ phoneNumber })
+      logActivity(EventType.PHONE_NUMBER_VERIFIED, { phoneNumber })
+    }
+  }
+
+  // --- Functions for security-review page ---
+  const initiateSecurityReview = async () => {
+    if (userProfile && userProfile.currentStatus === "under_review") {
+      await logActivity(EventType.SECURITY_REVIEW_INITIATED, {
+        reportedBy: userProfile.reviewRequestDetails?.reportingContactName || "System",
+        platforms: userProfile.reviewRequestDetails?.reportedPlatforms.join(", ") || "N/A",
+      })
+    }
+  }
+
+  const dismissAsFalseAlarm = async (messageToContact?: string) => {
+    if (!userProfile) return
+    const reportingContactName = userProfile.reviewRequestDetails?.reportingContactName
+    updateUserProfile({
+      currentStatus: "safe",
+      reviewRequestDetails: undefined,
+      breachTriggerDetails: undefined,
+    })
+    await logActivity(EventType.SECURITY_REVIEW_FALSE_ALARM_DISMISSED, {
+      resolutionMessage: messageToContact || "No message provided.",
+      notifiedContact: reportingContactName || "N/A",
+    })
+    if (reportingContactName && messageToContact) {
+      // Simulate notifying contact
+      console.log(`Simulating notification to ${reportingContactName}: ${messageToContact}`)
+      await logActivity(EventType.SECURITY_REVIEW_CONTACT_NOTIFIED_OF_RESOLUTION, {
+        contactName: reportingContactName,
+        resolution: "false_alarm",
+        message: messageToContact,
+      })
+    }
+    setCurrentBreachReport(null)
+    setContextError(null)
+  }
+
+  // --- Functions for recovery-process page ---
+  const sendRecoveryMessage = async (message: string, additionalContext?: string) => {
+    if (!userProfile || userProfile.currentStatus !== "recovering") return
+    await logActivity(EventType.RECOVERY_MESSAGE_COMPOSED, {
+      messagePreview: message.substring(0, 50),
+      contextPreview: additionalContext?.substring(0, 50),
+      contactsNotified: contacts.filter((c) => c.status === "active").length,
+    })
+    // Simulate sending this message to contacts (e.g., update notifications or log)
+    console.log("Simulating sending recovery message:", message, additionalContext)
+    alert("Recovery message (simulated) sent to contacts.")
+  }
+
+  const simulateContactRecoveryVotes = async () => {
+    if (!userProfile || userProfile.currentStatus !== "recovering") return
     const activeContacts = contacts.filter((c) => c.status === "active")
     let votesFor = 0
-    const updatedContacts = contacts.map((c) => {
-      if (c.status === "active") {
-        const vote = Math.random() > 0.25 // 75% chance of voting yes
-        if (vote) votesFor++
-        return {
-          ...c,
-          recoveryVoteStatus: vote ? "approved" : "denied",
-          recoveryVoteTimestamp: new Date(Date.now() + Math.random() * 1000 * 60 * 10).toISOString(), // Staggered votes
-        } as Contact
-      }
-      return c
+    activeContacts.forEach((contact) => {
+      const vote = Math.random() > 0.2 // 80% chance of approval
+      if (vote) votesFor++
+      updateContactState(contact.contactId, {
+        recoveryVoteStatus: vote ? "approved" : "denied",
+        recoveryVoteTimestamp: new Date().toISOString(),
+      })
+      logActivity(EventType.CONTACT_VOTE_RECEIVED, {
+        contactName: contact.name,
+        vote: vote ? "approved" : "denied",
+      })
     })
-    setContacts(updatedContacts)
-    logActivity(
-      "contact_vote_received",
-      { simulated: true, votes: activeContacts.length, approved: votesFor },
-      "SystemSimulation",
-    )
+    // Check if recovery can proceed
+    // This logic might be more complex (e.g., threshold)
+    if (votesFor >= Math.ceil(activeContacts.length / 2) && activeContacts.length > 0) {
+      updateUserProfile({ recoveryStage: "finalizing" })
+      await logActivity(EventType.SOCIAL_VOTING_INITIATED, {
+        status: "threshold_met",
+        votesFor,
+        totalVotes: activeContacts.length,
+      })
+    } else if (activeContacts.length > 0) {
+      await logActivity(EventType.SOCIAL_VOTING_INITIATED, {
+        status: "threshold_not_met",
+        votesFor,
+        totalVotes: activeContacts.length,
+      })
+      // Potentially set an error or different state if voting fails
+    }
+  }
 
-    // Simulate moving to next stage after votes
-    // In a real app, this would depend on threshold
-    setTimeout(async () => {
-      if (votesFor >= Math.ceil(activeContacts.length * 0.6)) {
-        // Example: 60% threshold
-        setUserProfile((up) => (up ? { ...up, recoveryStage: "finalizing" } : null))
-        await logActivity(
-          "social_voting_initiated",
-          { status: "threshold_met", votesFor, totalActiveContacts: activeContacts.length },
-          "System",
-        )
-        // Simulate finalization and completion
-        setTimeout(async () => {
-          await completeRecovery()
-        }, 3000)
-      } else {
-        setUserProfile((up) => (up ? { ...up, recoveryStage: "awaiting_social_verification" } : null)) // Or a "failed_voting" stage
-        await logActivity(
-          "social_voting_initiated",
-          { status: "threshold_not_met", votesFor, totalActiveContacts: activeContacts.length },
-          "System",
-        )
-        setError("Recovery failed: Not enough contact verifications.")
-      }
-      setIsLoading(false)
-    }, 2000) // Delay for votes to "come in"
-  }, [userProfile, contacts, logActivity, completeRecovery, setIsLoading, setError, setUserProfile])
+  const completeRecovery = async () => {
+    if (!userProfile || userProfile.currentStatus !== "recovering" || userProfile.recoveryStage !== "finalizing") return
+    updateUserProfile({ currentStatus: "recovered", recoveryStage: null, lastVerification: new Date().toISOString() })
+    await logActivity(
+      userProfile.breachTriggerDetails?.isPhoneIssue ? EventType.PHONE_SECURITY_RESTORED : EventType.RECOVERY_COMPLETED,
+      {
+        method: "simulated_completion",
+      },
+    )
+  }
+
+  const reportSuspicionByEmergencyContact = async (
+    platforms: string[],
+    description: string,
+    reportingContactName: string, // Name of the logged-in emergency contact
+  ) => {
+    if (!userProfile) {
+      // This function is called by an emergency contact ABOUT the userProfile.
+      // So, userProfile here refers to the person being monitored.
+      // We need to ensure this is clear. For now, assume userProfile is the one being reported on.
+      setContextError("Target user profile not loaded.")
+      return
+    }
+
+    const reviewDetails: ReviewRequestDetails = {
+      reportingContactName: reportingContactName, // This should be the emergency contact's name
+      // reportingContactId: find the ID if available, or pass name
+      reportedPlatforms: platforms,
+      reportDescription: description,
+      timestamp: new Date().toISOString(),
+      // Determine if it's a phone issue based on platforms or a dedicated flag from form
+      isPhoneIssue: platforms.some((p) => p.toLowerCase().includes("phone")),
+      phoneIssueType: platforms.some((p) => p.toLowerCase().includes("phone")) ? "General Phone Concern" : undefined,
+    }
+
+    updateUserProfile({
+      currentStatus: "under_review",
+      reviewRequestDetails: reviewDetails,
+    })
+
+    await logActivity(
+      reviewDetails.isPhoneIssue
+        ? EventType.PHONE_SECURITY_ISSUE_REPORTED_BY_CONTACT
+        : EventType.SUSPICION_REPORTED_BY_CONTACT,
+      {
+        contactName: reportingContactName,
+        platforms: platforms.join(", "),
+        description: description.substring(0, 100), // Log a preview
+        ...(reviewDetails.isPhoneIssue && { phoneIssueType: reviewDetails.phoneIssueType }),
+      },
+      "EmergencyContactReport",
+    )
+    setContextError(null)
+  }
 
   return (
     <ReclaimContext.Provider
@@ -871,30 +550,37 @@ Signed: ReclaimSystemSig` // Changed from ReclaimClientSig for system alerts
         userProfile,
         contacts,
         activityLog,
-        notifications,
         isLoading,
-        error,
-        initializeSession,
-        addContactAndSendInvitation,
-        updateContact,
-        removeContact,
-        logActivity,
+        contextError,
+        setContextError,
         updateUserProfile,
-        sendAlertsToContacts,
+        addContact: addContactAndSendInvitation, // Map simplified addContact to the more specific one
+        updateContact: updateContactState,
+        removeContact: removeContactState,
+        addActivityLogEntry: logActivity, // Use the new logActivity for this
+        setContacts, // Keep for direct manipulation if needed
+        currentBreachReport,
+        setCurrentBreachReport,
+        reportSuspicion,
+        confirmCompromiseAfterReview,
+        resolveAsFalseAlarm, // Old one, should be replaced by dismissAsFalseAlarm where appropriate
         initiateRecovery,
-        completeRecovery,
+        sendAlertsToContacts,
         simulateBreachByContactFlag,
-        flagSuspicionByContact,
-        reportSuspicionByEmergencyContact,
+        resetSessionData,
+        setPhoneNumber,
+        // New functions
+        addContactAndSendInvitation,
         resendInvitation,
         simulateAcceptInvitation,
         checkAndExpireInvitations,
-        resetSessionData,
         initiateSecurityReview,
-        confirmCompromiseAfterReview,
         dismissAsFalseAlarm,
         sendRecoveryMessage,
         simulateContactRecoveryVotes,
+        completeRecovery,
+        logActivity,
+        reportSuspicionByEmergencyContact,
       }}
     >
       {children}
@@ -902,7 +588,7 @@ Signed: ReclaimSystemSig` // Changed from ReclaimClientSig for system alerts
   )
 }
 
-export const useReclaim = () => {
+export const useReclaim = (): ReclaimContextType => {
   const context = useContext(ReclaimContext)
   if (context === undefined) {
     throw new Error("useReclaim must be used within a ReclaimProvider")

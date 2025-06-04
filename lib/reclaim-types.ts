@@ -1,29 +1,34 @@
 // Data types corresponding to the database schema
 
 export interface ReviewRequestDetails {
-  reportingContactName?: string // Name of the contact who reported, or "System"
-  reportingContactId?: string // ID of the contact who reported
-  reportingContactRelationship?: ContactRelationship // Relationship of the reporting contact
+  reportingContactName?: string
+  reportingContactId?: string
+  reportingContactRelationship?: ContactRelationship
   reportedPlatforms: string[]
   reportDescription?: string
   timestamp: string
+  isPhoneIssue?: boolean
+  phoneIssueType?: string
 }
 
 export interface UserProfile {
   userId: string
   authMethod: string
-  createdAt: string // ISO Date string
+  createdAt: string
   currentStatus: "safe" | "compromised" | "recovering" | "recovered" | "under_review"
-  recoveryStage?: "alerting_contacts" | "awaiting_social_verification" | "finalizing" | null // New field for recovery sub-status
-  lastVerification: string // ISO Date string
-  biometricHash?: string // Assuming it might not always be present client-side
-  name: string // Added for display, e.g., "Sarah Chen"
+  recoveryStage?: "alerting_contacts" | "awaiting_social_verification" | "finalizing" | null
+  lastVerification: string
+  biometricHash?: string
+  name: string
+  phoneNumber?: string
   breachTriggerDetails?: {
     type: "contact_flag" | "system_oracle" | "user_confirmed_review"
     contactName?: string
     reason?: string
     timestamp: string
     reportedPlatforms?: string[]
+    isPhoneIssue?: boolean
+    phoneIssueType?: string
   }
   reviewRequestDetails?: ReviewRequestDetails
 }
@@ -44,42 +49,66 @@ export interface Contact {
   invitationSentAt?: string | null
   invitationAcceptedAt?: string | null
   invitationExpiresAt?: string | null
-  // For recovery tracking (simulated)
   recoveryVoteStatus?: "pending" | "approved" | "denied" | "abstained"
   recoveryVoteTimestamp?: string | null
 }
 
-export type EventType =
-  | "user_onboarded"
-  | "identity_verified"
-  | "contact_added"
-  | "invitation_sent"
-  | "invitation_resent"
-  | "invitation_accepted"
-  | "invitation_expired"
-  | "contact_activated"
-  | "contact_updated"
-  | "contact_removed"
-  | "suspicion_reported_by_contact"
-  | "contact_flagged_suspicion"
-  | "security_review_initiated"
-  | "security_review_identity_verified"
-  | "security_review_compromise_confirmed"
-  | "security_review_false_alarm_dismissed"
-  | "security_review_contact_notified_of_resolution"
-  | "breach_detected"
-  | "identity_reverified"
-  | "contacts_alerted" // General alert
-  | "recovery_alerts_sent_to_contacts" // Specific to recovery start
-  | "recovery_message_composed" // User customizes recovery message
-  | "additional_alert_sent"
-  | "recovery_initiated" // User or system starts the recovery process
-  | "recovery_process_viewed" // User lands on the recovery page
-  | "social_voting_initiated" // System starts collecting votes (simulated)
-  | "contact_vote_received"
-  | "recovery_completed"
-  | "system_check_completed"
-  | "account_security_action_checked" // User checks off an item in guidance
+export enum SecurityStatus {
+  SECURE = "Secure",
+  UNDER_REVIEW = "Under Review",
+  COMPROMISED = "Compromised",
+  PHONE_SECURE = "Phone Secure",
+  PHONE_SECURITY_REVIEW = "Phone Security Review",
+  PHONE_COMPROMISED = "Phone Compromised",
+}
+
+export enum EventType {
+  USER_ONBOARDED = "user_onboarded",
+  PHONE_NUMBER_VERIFIED = "phone_number_verified",
+  EMERGENCY_CONTACT_ADDED = "emergency_contact_added",
+  SECURITY_ISSUE_REPORTED = "security_issue_reported",
+  SECURITY_ISSUE_RESOLVED = "security_issue_resolved",
+  COMPROMISE_CONFIRMED = "compromise_confirmed",
+  RECOVERY_INITIATED = "recovery_initiated",
+  ACCOUNT_SECURED = "account_secured",
+  FALSE_ALARM_CONFIRMED = "false_alarm_confirmed",
+  PHONE_SECURITY_CHECK_COMPLETED = "phone_security_check_completed",
+  PHONE_SECURITY_ISSUE_REPORTED_BY_CONTACT = "phone_security_issue_reported_by_contact",
+  PHONE_COMPROMISE_CONFIRMED = "phone_compromise_confirmed",
+  PHONE_RECOVERY_INITIATED = "phone_recovery_initiated",
+  PHONE_SECURITY_RESTORED = "phone_security_restored",
+  CONTACT_INVITE_SENT = "contact_invite_sent",
+  CONTACT_INVITE_ACCEPTED = "contact_invite_accepted",
+  CONTACT_RELATIONSHIP_VERIFIED = "contact_relationship_verified",
+  IDENTITY_VERIFIED = "identity_verified",
+  CONTACT_ADDED = "contact_added",
+  INVITATION_SENT = "invitation_sent",
+  INVITATION_RESENT = "invitation_resent",
+  INVITATION_ACCEPTED = "invitation_accepted",
+  INVITATION_EXPIRED = "invitation_expired",
+  CONTACT_ACTIVATED = "contact_activated",
+  CONTACT_UPDATED = "contact_updated",
+  CONTACT_REMOVED = "contact_removed",
+  SUSPICION_REPORTED_BY_CONTACT = "suspicion_reported_by_contact",
+  CONTACT_FLAGGED_SUSPICION = "contact_flagged_suspicion",
+  SECURITY_REVIEW_INITIATED = "security_review_initiated",
+  SECURITY_REVIEW_IDENTITY_VERIFIED = "security_review_identity_verified",
+  SECURITY_REVIEW_COMPROMISE_CONFIRMED = "security_review_compromise_confirmed",
+  SECURITY_REVIEW_FALSE_ALARM_DISMISSED = "security_review_false_alarm_dismissed",
+  SECURITY_REVIEW_CONTACT_NOTIFIED_OF_RESOLUTION = "security_review_contact_notified_of_resolution",
+  BREACH_DETECTED = "breach_detected",
+  IDENTITY_REVERIFIED = "identity_reverified",
+  CONTACTS_ALERTED = "contacts_alerted",
+  RECOVERY_ALERTS_SENT_TO_CONTACTS = "recovery_alerts_sent_to_contacts",
+  RECOVERY_MESSAGE_COMPOSED = "recovery_message_composed",
+  ADDITIONAL_ALERT_SENT = "additional_alert_sent",
+  RECOVERY_PROCESS_VIEWED = "recovery_process_viewed",
+  SOCIAL_VOTING_INITIATED = "social_voting_initiated",
+  CONTACT_VOTE_RECEIVED = "contact_vote_received",
+  RECOVERY_COMPLETED = "recovery_completed",
+  SYSTEM_CHECK_COMPLETED = "system_check_completed",
+  ACCOUNT_SECURITY_ACTION_CHECKED = "account_security_action_checked",
+}
 
 export interface ActivityLogEntry {
   activityId: string
@@ -100,26 +129,18 @@ export interface Notification {
   notificationType: "breach_alert" | "additional_alert" | "recovery_request" | "review_resolution" | "recovery_update"
 }
 
-export const formatDisplayTimestamp = (isoString: string | null | undefined): string => {
-  if (!isoString) return "N/A"
-  return new Date(isoString).toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
+export interface EmergencyContact {
+  id: string
+  name: string
+  relationship: string
 }
 
-export const formatShortTimestamp = (isoString: string | null | undefined): string => {
-  if (!isoString) return "N/A"
-  try {
-    return new Date(isoString).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  } catch (error) {
-    console.error("Error formatting timestamp:", error)
-    return "Invalid Date"
-  }
+export interface BreachReport {
+  platform: string
+  description: string
+  reportedAt: string
+  isPhoneIssue?: boolean
+  phoneIssueType?: string
 }
+
+// formatDisplayTimestamp and formatShortTimestamp are now defined in lib/utils.ts
