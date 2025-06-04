@@ -6,7 +6,7 @@ import { ShieldCheck, ShieldAlert, ShieldQuestion, UserCheck, AlertCircle, LogOu
 import Link from "next/link"
 import { useRouter } from "next/navigation" // Add this import
 import { useReclaim } from "@/contexts/reclaim-context" // To get primary user's data for now
-import { formatDisplayTimestamp } from "@/lib/reclaim-types"
+import { formatDisplayTimestamp } from "@/lib/utils"
 import type { UserProfile, ActivityLogEntry } from "@/lib/reclaim-types"
 
 // Mock: In a real app, this would be determined by the authenticated emergency contact's association

@@ -6,7 +6,7 @@ import { AlertTriangle, Video, ShieldAlert, UserCheck } from "lucide-react" // I
 import { useRouter } from "next/navigation"
 import { useReclaim } from "@/contexts/reclaim-context" // Import useReclaim
 import { useEffect } from "react"
-import { formatDisplayTimestamp } from "@/lib/reclaim-types" // Use consistent formatter
+import { formatDisplayTimestamp } from "@/lib/utils" // Use consistent formatter
 
 // Mock data - these could eventually come from the breach details or user settings
 const generatedPassphrase = "crimson-sentinel-vector-omega-void"

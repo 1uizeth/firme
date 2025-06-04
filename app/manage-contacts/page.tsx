@@ -35,7 +35,7 @@ import {
 import Link from "next/link"
 import { useReclaim } from "@/contexts/reclaim-context"
 import type { Contact as ReclaimContactType, ContactRelationship } from "@/lib/reclaim-types"
-import { formatDisplayTimestamp } from "@/lib/reclaim-types"
+import { formatDisplayTimestamp } from "@/lib/utils"
 
 const relationshipOptions: ContactRelationship[] = ["Family", "Friend", "Colleague", "Other"]
 

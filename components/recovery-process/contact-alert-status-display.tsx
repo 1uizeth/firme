@@ -1,5 +1,5 @@
 import type { Contact, Notification } from "@/lib/reclaim-types"
-import { formatDisplayTimestamp, formatShortTimestamp } from "@/lib/reclaim-types"
+import { formatDisplayTimestamp, formatShortTimestamp } from "@/lib/utils"
 import { Mail, Phone, CheckCircle, Send, Eye, AlertCircle, Loader2 } from "lucide-react"
 
 interface ContactAlertStatusDisplayProps {

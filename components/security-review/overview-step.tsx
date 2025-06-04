@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { ShieldCheck, ShieldAlert, Info } from "lucide-react"
 import type { ReviewRequestDetails } from "@/lib/reclaim-types"
-import { formatDisplayTimestamp } from "@/lib/reclaim-types"
+import { formatDisplayTimestamp } from "@/lib/utils"
 
 interface OverviewStepProps {
   reviewDetails: ReviewRequestDetails
