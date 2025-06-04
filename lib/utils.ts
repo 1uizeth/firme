@@ -1,16 +1,6 @@
-export const cn = (...inputs: (string | undefined | null)[]) => {
-  return inputs.filter(Boolean).join(" ")
-}
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
 
-export const formatShortTimestamp = (isoString: string | null | undefined): string => {
-  if (!isoString) return "N/A"
-  try {
-    return new Date(isoString).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  } catch (error) {
-    console.error("Error formatting timestamp:", error)
-    return "Invalid Date"
-  }
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
 }
