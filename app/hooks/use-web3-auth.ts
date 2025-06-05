@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { Web3AuthContext } from '@/providers/Web3AuthProvider'
+import { Web3AuthContext } from '@/providers/Web3AuthContext'
 
 export const useWeb3Auth = () => {
   const value = useContext(Web3AuthContext)

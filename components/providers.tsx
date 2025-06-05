@@ -4,8 +4,8 @@ import { CivicAuthProvider } from "@civic/auth-web3/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { connectorsForWallets, lightTheme, RainbowKitProvider, Theme } from '@rainbow-me/rainbowkit'
 import { injectedWallet } from '@rainbow-me/rainbowkit/wallets'
-import { Chain, sapphire, sapphireTestnet, mainnet, sepolia } from 'viem/chains'
-import { createConfig, createConnector, Transport, WagmiProvider } from 'wagmi'
+import { Chain, sepolia } from "wagmi/chains";
+import { createConfig, createConnector, WagmiProvider } from 'wagmi'
 import { Web3AuthContextProvider } from "../providers/Web3AuthProvider";
 import { AppStateContextProvider } from "../providers/AppStateProvider";
 import { AccountAvatar } from "./account-avatar";
@@ -13,8 +13,8 @@ import "@rainbow-me/rainbowkit/styles.css";
 import {
   injectedWithSapphire,
   sapphireHttpTransport,
-  sapphireLocalnet,
 } from '@oasisprotocol/sapphire-wagmi-v2'
+import { sapphire } from 'viem/chains'
 
 // interface ImportMetaEnv {
 //   NEXT_PUBLIC_NETWORK: string
@@ -28,12 +28,35 @@ import {
 
 const queryClient = new QueryClient();
 
-// Configure chains and RPC URLs.
-export const supportedChains = [mainnet, sepolia] as [
-  Chain,
-  ...Chain[],
-];
+// Define Sapphire Testnet chain
+const sapphireTestnet = {
+  ...sapphire,
+  id: 0x5aff,
+  name: 'Sapphire Testnet',
+  network: 'sapphire-testnet',
+  nativeCurrency: {
+    name: 'TEST',
+    symbol: 'TEST',
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: ['https://testnet.sapphire.oasis.dev'],
+    },
+    public: {
+      http: ['https://testnet.sapphire.oasis.dev'],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: 'Sapphire Testnet Explorer',
+      url: 'https://testnet.explorer.sapphire.oasis.dev',
+    },
+  },
+  testnet: true,
+} as const;
 
+// Configure the theme
 const rainbowKitTheme: Theme = {
   ...lightTheme({ accentColor: 'var(--brand-extra-dark)' }),
   fonts: {
@@ -41,17 +64,7 @@ const rainbowKitTheme: Theme = {
   },
 };
 
-// Configure RainbowKit
-// To get a WalletConnect ProjectID:
-// 1. Go to https://cloud.walletconnect.com/sign-in
-// 2. Sign up or sign in
-// 3. Create a new project
-// 4. Copy the Project ID and paste it below
-
-// Create Wagmi config with RainbowKit connectors
-
-const NEXT_NETWORK_NUMBER = Number(process.env.NEXT_PUBLIC_NETWORK_NUMBER);
-
+// Create Wagmi config for Sapphire Testnet
 export const wagmiConfig = createConfig({
   multiInjectedProviderDiscovery: false,
   connectors: [
@@ -73,25 +86,20 @@ export const wagmiConfig = createConfig({
           ],
         },
       ],
-      { appName: 'Demo starter', projectId: 'PROJECT_ID' }
+      { 
+        appName: 'Firme',
+        projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "PROJECT_ID"
+      }
     ),
   ],
-  chains: [
-    ...(NEXT_NETWORK_NUMBER === 0x5afe ? [sapphire] : []),
-    ...(NEXT_NETWORK_NUMBER === 0x5aff ? [sapphireTestnet] : []),
-    ...(NEXT_NETWORK_NUMBER === 0x5afd ? [sapphireLocalnet] : []),
-  ] as unknown as [Chain],
+  chains: [sapphireTestnet] as [Chain, ...Chain[]],
   transports: {
-    ...((NEXT_NETWORK_NUMBER === 0x5afe ? { [sapphire.id]: sapphireHttpTransport() } : {}) as Transport),
-    ...((NEXT_NETWORK_NUMBER === 0x5aff
-      ? { [sapphireTestnet.id]: sapphireHttpTransport() }
-      : {}) as Transport),
-    ...(NEXT_NETWORK_NUMBER === 0x5afd ? { [sapphireLocalnet.id]: sapphireHttpTransport() } : {}),
+    [sapphireTestnet.id]: sapphireHttpTransport()
   },
   batch: {
     multicall: false,
   },
-})
+});
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (

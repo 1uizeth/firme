@@ -154,13 +154,17 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
       return
     }
 
-    if (!authInfo) {
-      console.log("No authInfo available:", authInfo);
-      setEntryError('Authentication required!')
-      return
-    }
-
     try {
+      if (!authInfo) {
+        console.log("No authInfo available, fetching...");
+        await fetchAuthInfo()
+      }
+
+      if (!authInfo) {
+        setEntryError('Authentication failed - please try again')
+        return
+      }
+
       console.log("Attempting contract write with:", {
         nameValue,
         numberValue,
@@ -237,23 +241,20 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
       <div className="space-y-4 mb-6 text-left">
         <Input
           type="text"
-          placeholder="Contact Name"
           value={nameValue}
+          placeholder="Name"
           onChange={(e) => setNameValue(e.target.value)}
-          className="border-neutral-300 focus:border-[#00A86B]"
-          aria-label="Contact Name"
+          className={entryError ? "border-red-500" : ""}
+          disabled={isInteractingWithChain}
         />
+        {entryError && <p className="text-red-500 text-sm">{entryError}</p>}
         <Input
           type="text"
-          placeholder="Contact Method (e.g., email or phone)"
           value={numberValue}
+          placeholder="Number"
           onChange={(e) => setNumberValue(e.target.value)}
-          className="border-neutral-300 focus:border-[#00A86B]"
-          aria-label="Contact Method"
+          disabled={isInteractingWithChain}
         />
-        {entryError && (
-          <p className="text-red-500 text-sm">{entryError}</p>
-        )}
         <Button
           onClick={handleAddContact}
           variant="outline"
@@ -295,62 +296,63 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
             ))}
           </ul>
           <div className={classes.homePage}>
-      <Card header={<h2>Numbers Reclaim</h2>}>
-        {address && (
-          <>
-            <div className={classes.activeMessageText}>
-              <h3>Your Numbers List</h3>
-              <p>Your private numbers list stored on-chain.</p>
+            <div className="card">
+              <h2>Numbers Reclaim</h2>
+              {address && (
+                <>
+                  <div className={classes.activeMessageText}>
+                    <h3>Your Numbers List</h3>
+                    <p>Your private numbers list stored on-chain.</p>
+                  </div>
+                  <RevealInput
+                    value={numbersList ? 
+                      numbersList.names.map((name, index) => `${name}: ${numbersList.numbers[index]}`).join('\n') : 
+                      ''
+                    }
+                    label={address}
+                    disabled
+                    reveal={!!numbersList}
+                    revealLabel={!!numbersList ? undefined : numbersListRevealLabel}
+                    onRevealChange={handleRevealChanged}
+                  />
+                  {numbersListError && <p className="error">{StringUtils.truncate(numbersListError)}</p>}
+                  <div className={classes.setMessageText}>
+                    <h3>Add Entry</h3>
+                    <p>Add a new name and number to your list.</p>
+                  </div>
+                  <Input
+                    type="text"
+                    value={nameValue}
+                    placeholder="Name"
+                    onChange={(e) => setNameValue(e.target.value)}
+                    className={entryError ? "border-red-500" : ""}
+                    disabled={isInteractingWithChain}
+                  />
+                  {entryError && <p className="text-red-500 text-sm">{entryError}</p>}
+                  <Input
+                    type="text"
+                    value={numberValue}
+                    placeholder="Number"
+                    onChange={(e) => setNumberValue(e.target.value)}
+                    disabled={isInteractingWithChain}
+                  />
+                  <div className={classes.setMessageActions}>
+                    <Button disabled={isInteractingWithChain} onClick={handleAddToNumbersList}>
+                      {isInteractingWithChain ? 'Please wait...' : 'Add Entry'}
+                    </Button>
+                  </div>
+                </>
+              )}
+              {!address && (
+                <>
+                  <div className={classes.connectWalletText}>
+                    <p>Please connect your wallet to get started.</p>
+                  </div>
+                </>
+              )}
             </div>
-            <RevealInput
-              value={numbersList ? 
-                numbersList.names.map((name, index) => `${name}: ${numbersList.numbers[index]}`).join('\n') : 
-                ''
-              }
-              label={address}
-              disabled
-              reveal={!!numbersList}
-              revealLabel={!!numbersList ? undefined : numbersListRevealLabel}
-              onRevealChange={handleRevealChanged}
-            />
-            {numbersListError && <p className="error">{StringUtils.truncate(numbersListError)}</p>}
-            <div className={classes.setMessageText}>
-              <h3>Add Entry</h3>
-              <p>Add a new name and number to your list.</p>
-            </div>
-            <Input
-              value={nameValue}
-              label="Name"
-              onChange={setNameValue}
-              error={entryError}
-              disabled={isInteractingWithChain}
-            />
-            <Input
-              value={numberValue}
-              label="Number"
-              onChange={setNumberValue}
-              disabled={isInteractingWithChain}
-            />
-            <div className={classes.setMessageActions}>
-              <Button disabled={isInteractingWithChain} onClick={handleAddToNumbersList}>
-                {isInteractingWithChain ? 'Please wait...' : 'Add Entry'}
-              </Button>
-            </div>
-          </>
-        )}
-        {!address && (
-          <>
-            <div className={classes.connectWalletText}>
-              <p>Please connect your wallet to get started.</p>
-            </div>
-          </>
-        )}
-      </Card>
-    </div>
-
+          </div>
         </div>
-
-        
       )}
 
       <Button

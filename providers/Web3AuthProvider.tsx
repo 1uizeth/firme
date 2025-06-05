@@ -1,48 +1,86 @@
-"use client";
+import { FC, PropsWithChildren, useEffect, useState } from 'react'
+import { Web3AuthContext, Web3AuthProviderContext, Web3AuthProviderState } from '@/providers/Web3AuthContext'
+import { SiweMessage } from 'siwe'
+import { useAccount, useReadContract, useSignMessage } from 'wagmi'
+import { WAGMI_CONTRACT_CONFIG, WagmiUseReadContractReturnType } from '@/app/utils/config'
+import { parseSignature } from 'viem'
 
-import { createContext, useContext, ReactNode, FC, useState } from 'react';
-
-interface Web3AuthContextType {
-  state: {
-    authInfo: string | null;
-  };
-  fetchAuthInfo: () => Promise<void>;
+const web3AuthProviderInitialState: Web3AuthProviderState = {
+  authInfo: null,
+  signature: null,
+  siweMessage: null,
 }
 
-export const Web3AuthContext = createContext<Web3AuthContextType>({
-  state: {
-    authInfo: null
-  },
-  fetchAuthInfo: async () => {}
-});
+export const Web3AuthContextProvider: FC<PropsWithChildren> = ({ children }) => {
+  const [state, setState] = useState<Web3AuthProviderState>({
+    ...web3AuthProviderInitialState,
+  })
 
-export const Web3AuthContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
-  const [authInfo, setAuthInfo] = useState<string | null>(null);
+  const { chainId, address } = useAccount()
+  const { signMessageAsync } = useSignMessage()
 
-  const fetchAuthInfo = async () => {
-    // Implement your auth info fetching logic here
-    // For now, we'll just use a placeholder
-    setAuthInfo("placeholder_auth_info");
-  };
-  
-  return (
-    <Web3AuthContext.Provider 
-      value={{
-        state: {
-          authInfo
-        },
-        fetchAuthInfo
-      }}
-    >
-      {children}
-    </Web3AuthContext.Provider>
-  );
-};
+  const {
+    data: domain,
+    error: readDomainError,
+    refetch: refetchDomain,
+  } = useReadContract({
+    ...WAGMI_CONTRACT_CONFIG,
+    functionName: 'domain',
+  }) satisfies WagmiUseReadContractReturnType<'domain', string>
 
-export const useWeb3Auth = () => {
-  const context = useContext(Web3AuthContext);
-  if (!context) {
-    throw new Error('[useWeb3Auth] Component not wrapped within a Provider');
+  const { data: retrievedAuthInfo } = useReadContract({
+    ...WAGMI_CONTRACT_CONFIG,
+    functionName: 'login',
+    args: [state.siweMessage, state.signature],
+    query: {
+      enabled: state.siweMessage && state.signature,
+    },
+  }) satisfies WagmiUseReadContractReturnType<'login', string>
+
+  useEffect(() => {
+    if (retrievedAuthInfo !== state.authInfo) {
+      setState(prevState => ({
+        ...prevState,
+        authInfo: retrievedAuthInfo!,
+      }))
+    }
+  }, [retrievedAuthInfo])
+
+  const fetchAuthInfo = async (): Promise<void> => {
+    const { authInfo } = state
+    console.log('authInfo', authInfo)
+    if (authInfo) {
+      console.debug('[Web3AuthContextProvider] AuthInfo already available, skipping...')
+      return
+    }
+
+    if (!domain && readDomainError) {
+      refetchDomain()
+      throw new Error('Unable to retrieve domain, retrying. Try again later...')
+    }
+
+    const siweMessage = new SiweMessage({
+      domain,
+      address,
+      uri: `http://${domain}`,
+      version: '1',
+      chainId: chainId,
+    }).toMessage()
+
+    const signature = await signMessageAsync({ message: siweMessage })
+    const signatureRSV = parseSignature(signature)
+
+    setState(prevState => ({
+      ...prevState,
+      signature: signatureRSV,
+      siweMessage,
+    }))
   }
-  return context;
-}; 
+
+  const providerState: Web3AuthProviderContext = {
+    state,
+    fetchAuthInfo,
+  }
+
+  return <Web3AuthContext.Provider value={providerState}>{children}</Web3AuthContext.Provider>
+}
