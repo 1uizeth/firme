@@ -1,8 +1,10 @@
 "use client"
 
+import type React from "react"
 import { useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useReclaim } from "@/contexts/reclaim-context"
+import { EventType } from "@/lib/reclaim-types"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { AlertCircle, Loader2, ShieldEllipsis } from "lucide-react"
@@ -22,22 +24,36 @@ export default function RecoveryProcessPage() {
     contacts,
     notifications,
     isLoading: contextIsLoading,
-    error: contextError,
+    contextError,
     logActivity,
     sendRecoveryMessage,
-    simulateContactRecoveryVotes, // For demo
-    completeRecovery, // For demo to complete process
+    simulateContactRecoveryVotes,
+    completeRecovery,
+    updateUserProfile,
   } = useReclaim()
 
   useEffect(() => {
     if (!contextIsLoading && userProfile && userProfile.currentStatus !== "recovering") {
-      // If not in recovery, or no profile, redirect.
       console.warn("User not in recovery state. Redirecting from /recovery-process.")
       router.push("/dashboard")
     } else if (userProfile && userProfile.currentStatus === "recovering") {
-      logActivity("recovery_process_viewed", { stage: userProfile.recoveryStage || "initial" })
+      logActivity(EventType.RECOVERY_PROCESS_VIEWED, { stage: userProfile.recoveryStage || "initial" })
     }
   }, [userProfile, contextIsLoading, router, logActivity])
+
+  const handleSimulateVotes = async () => {
+    if (userProfile?.currentStatus === "recovering") {
+      // First update the stage to awaiting social verification
+      await updateUserProfile({ recoveryStage: "awaiting_social_verification" })
+      // Then simulate the votes
+      await simulateContactRecoveryVotes()
+    }
+  }
+
+  const handleCompleteRecovery = async () => {
+    await completeRecovery()
+    router.push("/dashboard")
+  }
 
   const activeRecoveryNotifications = useMemo(() => {
     return notifications.filter(
@@ -49,7 +65,7 @@ export default function RecoveryProcessPage() {
     return userProfile?.breachTriggerDetails?.reportedPlatforms || ["Unknown Accounts"]
   }, [userProfile])
 
-  if (contextIsLoading && !userProfile) {
+  if (contextIsLoading || !userProfile) {
     return (
       <div className="flex flex-col items-center justify-center min-h-dvh bg-neutral-100 p-4">
         <Loader2 className="h-12 w-12 animate-spin text-[#00A86B] mb-4" />
@@ -112,17 +128,16 @@ export default function RecoveryProcessPage() {
         <Separator />
         <RecoveryActions
           onContactSupport={() => alert("Contact Support: support@reclaim.id (Placeholder)")}
-          // Add other actions if needed
         />
         <Separator />
         <RecoveryProgressTracker
           contacts={contacts.filter((c) => c.status === "active")}
           currentStage={userProfile.recoveryStage || "alerting_contacts"}
-          onSimulateVotes={simulateContactRecoveryVotes} // Demo
-          onCompleteRecovery={completeRecovery} // Demo
+          onSimulateVotes={handleSimulateVotes}
+          onCompleteRecovery={handleCompleteRecovery}
         />
         <Separator />
-        <AccountSecurityGuidance onLogAction={(action) => logActivity("account_security_action_checked", { action })} />
+        <AccountSecurityGuidance onLogAction={(action) => logActivity(EventType.ACCOUNT_SECURITY_ACTION_CHECKED, { action })} />
       </div>
     </RecoveryLayout>
   )
