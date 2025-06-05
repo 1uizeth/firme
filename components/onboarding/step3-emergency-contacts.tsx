@@ -1,11 +1,19 @@
 "use client"
-import { useState } from "react"
 import OnboardingLayout from "./onboarding-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Card } from '@/components/ui/card'
 import { X, Plus } from "lucide-react"
 import { useReclaim } from "@/contexts/reclaim-context"
 import type { Contact as ReclaimContactType, ContactRelationship } from "@/lib/reclaim-types"
+import { FC, useEffect, useState } from 'react'
+import { StringUtils } from '@/app/utils/string.utils'
+import classes from './index.module.css'
+import { RevealInput } from '@/components/reveal-input'
+import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
+import { WAGMI_CONTRACT_CONFIG, WagmiUseReadContractReturnType } from '@/app/utils/config'
+import { useWeb3Auth } from '@/app/hooks/use-web3-auth'
+
 
 interface Step3EmergencyContactsProps {
   onComplete: () => void
@@ -15,38 +23,168 @@ interface Step3EmergencyContactsProps {
 }
 
 export default function Step3EmergencyContacts({ onComplete, onBack, currentStep, totalSteps }: Step3EmergencyContactsProps) {
+  const { address } = useAccount()
+  const {
+    state: { authInfo },
+    fetchAuthInfo,
+  } = useWeb3Auth()
+
+  const { data: numbersListData, refetch: refetchNumbersList } = useReadContract({
+    ...WAGMI_CONTRACT_CONFIG,
+    functionName: 'getNumbersList',
+    args: [authInfo],
+    query: {
+      enabled: !!authInfo,
+    },
+  }) satisfies WagmiUseReadContractReturnType<'getNumbersList', [string[], string[]], [string]>
+
+  const {
+    data: addToNumbersListTxHash,
+    writeContract,
+    isPending: isWriteContractPending,
+    isError: isWriteContractError,
+    error: writeContractError,
+  } = useWriteContract()
+  const {
+    isPending: isTransactionReceiptPending,
+    isSuccess: isTransactionReceiptSuccess,
+    isError: isTransactionReceiptError,
+    error: transactionReceiptError,
+  } = useWaitForTransactionReceipt({
+    hash: addToNumbersListTxHash,
+  })
+
+  const isInteractingWithChain = isWriteContractPending || (addToNumbersListTxHash && isTransactionReceiptPending)
+
+  const [numbersList, setNumbersList] = useState<{ names: string[], numbers: string[] } | null>(null)
+  const [nameValue, setNameValue] = useState<string>('')
+  const [numberValue, setNumberValue] = useState<string>('')
+  const [numbersListRevealLabel, setNumbersListRevealLabel] = useState<string>()
+  const [numbersListError, setNumbersListError] = useState<string | null>(null)
+  const [entryError, setEntryError] = useState<string>()
+  const [hasBeenRevealedBefore, setHasBeenRevealedBefore] = useState(false)
+
+  useEffect(() => {
+    if (authInfo && numbersListData) {
+      setNumbersList({
+        names: numbersListData[0],
+        numbers: numbersListData[1],
+      })
+    }
+  }, [numbersListData])
+
+  const fetchNumbersList = async () => {
+    setNumbersListError(null)
+    setNumbersListRevealLabel('Please sign message and wait...')
+
+    try {
+      await fetchAuthInfo()
+      await refetchNumbersList()
+      setNumbersListRevealLabel(undefined)
+      setHasBeenRevealedBefore(true)
+
+      return Promise.resolve()
+    } catch (ex) {
+      setNumbersListError((ex as Error).message)
+      setNumbersListRevealLabel('Something went wrong! Please try again...')
+
+      throw ex
+    }
+  }
+
+  useEffect(() => {
+    if (isTransactionReceiptSuccess) {
+      setNameValue('')
+      setNumberValue('')
+
+      if (!hasBeenRevealedBefore) {
+        setNumbersList(null)
+        setNumbersListRevealLabel('Tap to reveal')
+      } else {
+        fetchNumbersList()
+      }
+    } else if (isTransactionReceiptError || isWriteContractError) {
+      setEntryError(transactionReceiptError?.message ?? writeContractError?.message)
+    }
+  }, [isTransactionReceiptSuccess, isTransactionReceiptError, isWriteContractError])
+
+  const handleRevealChanged = async (): Promise<void> => {
+    if (!isInteractingWithChain) {
+      return await fetchNumbersList()
+    }
+
+    return Promise.reject()
+  }
+
   const {
     contacts: contextContacts,
-    addContactAndSendInvitation, // Updated function name
+    addContactAndSendInvitation,
     removeContact: removeContextContact,
     isLoading,
   } = useReclaim()
 
-  const [name, setName] = useState("")
-  const [contactMethod, setContactMethod] = useState("")
-  // Default to 'email' or let user choose if UI is expanded
-  // const [contactType, setContactType] = useState<ReclaimContactType["type"]>("email"); // Type is auto-detected now
+  const handleAddToNumbersList = async () => {
+    setEntryError(undefined)
+
+    if (!nameValue) {
+      setEntryError('Name is required!')
+      return
+    }
+
+    if (!numberValue) {
+      setEntryError('Number is required!')
+      return
+    }
+
+    if (!authInfo) {
+      setEntryError('Authentication required!')
+      return
+    }
+
+    try {
+      await writeContract({
+        ...WAGMI_CONTRACT_CONFIG,
+        functionName: 'addToNumbersList',
+        args: [nameValue, numberValue, authInfo],
+      })
+    } catch (error) {
+      console.error('Contract write error:', writeContractError || error)
+      setEntryError(writeContractError?.message || (error as Error).message)
+      throw error; // Re-throw to be caught by the parent try-catch
+    }
+  }
 
   const handleAddContact = async () => {
-    if (name.trim() && contactMethod.trim()) {
+    if (nameValue.trim() && numberValue.trim()) {
       let determinedType: ReclaimContactType["type"] = "other"
-      if (contactMethod.includes("@")) {
+      if (numberValue.includes("@")) {
         determinedType = "email"
-      } else if (contactMethod.match(/^\+?[0-9\s-()]+$/)) {
+      } else if (numberValue.match(/^\+?[0-9\s-()]+$/)) {
         determinedType = "phone"
       }
 
-      // Provide a default relationship for contacts added during onboarding
-      const defaultRelationship: ContactRelationship = "Other"
+      try {
+        // If it's a phone number, add to the contract
+        if (determinedType === "phone") {
+          await handleAddToNumbersList()
+        }
 
-      await addContactAndSendInvitation({
-        name: name.trim(),
-        contactMethod: contactMethod.trim(),
-        type: determinedType,
-        relationship: defaultRelationship, // Added default relationship
-      })
-      setName("")
-      setContactMethod("")
+        // Add to contacts list
+        const defaultRelationship: ContactRelationship = "Other"
+        await addContactAndSendInvitation({
+          name: nameValue.trim(),
+          contactMethod: numberValue.trim(),
+          type: determinedType,
+          relationship: defaultRelationship,
+        })
+
+        // Clear the inputs after successful addition
+        setNameValue("")
+        setNumberValue("")
+      } catch (error) {
+        console.error('Error adding contact:', error)
+        setEntryError((error as Error).message)
+      }
     }
   }
 
@@ -68,27 +206,31 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
         <Input
           type="text"
           placeholder="Contact Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={nameValue}
+          onChange={(e) => setNameValue(e.target.value)}
           className="border-neutral-300 focus:border-[#00A86B]"
           aria-label="Contact Name"
         />
         <Input
           type="text"
           placeholder="Contact Method (e.g., email or phone)"
-          value={contactMethod}
-          onChange={(e) => setContactMethod(e.target.value)}
+          value={numberValue}
+          onChange={(e) => setNumberValue(e.target.value)}
           className="border-neutral-300 focus:border-[#00A86B]"
           aria-label="Contact Method"
         />
+        {entryError && (
+          <p className="text-red-500 text-sm">{entryError}</p>
+        )}
         <Button
           onClick={handleAddContact}
           variant="outline"
           className="w-full border-[#00A86B] text-[#00A86B] hover:bg-[#00A86B]/10 rounded-md"
           aria-label="Add Contact"
-          disabled={isLoading}
+          disabled={isLoading || isInteractingWithChain}
         >
-          <Plus className="mr-2 h-4 w-4" /> {isLoading ? "Adding..." : "Add Contact & Send Invite"}
+          <Plus className="mr-2 h-4 w-4" />
+          {isLoading || isInteractingWithChain ? "Adding..." : "Add Contact & Send Invite"}
         </Button>
       </div>
 

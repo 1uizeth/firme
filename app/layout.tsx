@@ -40,7 +40,7 @@ export default function RootLayout({
         <Providers>
             <ReclaimProvider>
               <ScrollToTop />
-              {children}
+                {children}
             </ReclaimProvider>
         </Providers>
       </body>
