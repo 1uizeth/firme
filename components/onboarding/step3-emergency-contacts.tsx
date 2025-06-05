@@ -8,11 +8,11 @@ import { useReclaim } from "@/contexts/reclaim-context"
 import type { Contact as ReclaimContactType, ContactRelationship } from "@/lib/reclaim-types"
 import { FC, useEffect, useState } from 'react'
 import { StringUtils } from '@/app/utils/string.utils'
-import classes from './index.module.css'
 import { RevealInput } from '@/components/reveal-input'
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
 import { WAGMI_CONTRACT_CONFIG, WagmiUseReadContractReturnType } from '@/app/utils/config'
 import { useWeb3Auth } from '@/app/hooks/use-web3-auth'
+import classes from '@/app/css/index.module.css'
 
 
 interface Step3EmergencyContactsProps {
@@ -37,6 +37,11 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
       enabled: !!authInfo,
     },
   }) satisfies WagmiUseReadContractReturnType<'getNumbersList', [string[], string[]], [string]>
+
+  useEffect(() => { 
+    console.log("numbersListData", numbersListData)
+    console.log("authInfo", authInfo)
+  }, [numbersListData, authInfo])
 
   const {
     data: addToNumbersListTxHash,
@@ -289,7 +294,63 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
               </li>
             ))}
           </ul>
+          <div className={classes.homePage}>
+      <Card header={<h2>Numbers Reclaim</h2>}>
+        {address && (
+          <>
+            <div className={classes.activeMessageText}>
+              <h3>Your Numbers List</h3>
+              <p>Your private numbers list stored on-chain.</p>
+            </div>
+            <RevealInput
+              value={numbersList ? 
+                numbersList.names.map((name, index) => `${name}: ${numbersList.numbers[index]}`).join('\n') : 
+                ''
+              }
+              label={address}
+              disabled
+              reveal={!!numbersList}
+              revealLabel={!!numbersList ? undefined : numbersListRevealLabel}
+              onRevealChange={handleRevealChanged}
+            />
+            {numbersListError && <p className="error">{StringUtils.truncate(numbersListError)}</p>}
+            <div className={classes.setMessageText}>
+              <h3>Add Entry</h3>
+              <p>Add a new name and number to your list.</p>
+            </div>
+            <Input
+              value={nameValue}
+              label="Name"
+              onChange={setNameValue}
+              error={entryError}
+              disabled={isInteractingWithChain}
+            />
+            <Input
+              value={numberValue}
+              label="Number"
+              onChange={setNumberValue}
+              disabled={isInteractingWithChain}
+            />
+            <div className={classes.setMessageActions}>
+              <Button disabled={isInteractingWithChain} onClick={handleAddToNumbersList}>
+                {isInteractingWithChain ? 'Please wait...' : 'Add Entry'}
+              </Button>
+            </div>
+          </>
+        )}
+        {!address && (
+          <>
+            <div className={classes.connectWalletText}>
+              <p>Please connect your wallet to get started.</p>
+            </div>
+          </>
+        )}
+      </Card>
+    </div>
+
         </div>
+
+        
       )}
 
       <Button

@@ -1,6 +1,6 @@
 import { FC, useEffect, useState } from 'react'
-import classes from './index.module.css'
 import { StringUtils } from '@/app/utils/string.utils'
+import classes from '@/app/css/index.module.css'
 
 type RevealProps<T> = {
   reveal: boolean
