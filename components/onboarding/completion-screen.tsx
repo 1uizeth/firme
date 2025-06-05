@@ -17,10 +17,11 @@ export default function CompletionScreen() {
         </p>
       </main>
       <footer>
-        {/*
-          • Remove both `legacyBehavior` and `passHref`. 
-          • Next.js’s <Link> now automatically forwards `href` to an <a> child.
-          • Keep `asChild` on your Button so that Button will render the <a> as its root.
+        {/* 
+          When using asChild with Link and Button, the correct pattern is:
+          1. Put asChild on the Button
+          2. Put the Button inside the Link
+          3. Don't add an <a> tag - the Link will render as an <a> and Button will adopt it
         */}
         <Link href="/dashboard">
           <Button
@@ -28,7 +29,7 @@ export default function CompletionScreen() {
             className="w-full bg-[#00A86B] hover:bg-[#008F5B] text-white py-3 text-lg rounded-md"
             aria-label="Enter Reclaim System"
           >
-            <a>Enter System</a>
+            Enter System
           </Button>
         </Link>
       </footer>

@@ -90,6 +90,8 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
   const [numbersListError, setNumbersListError] = useState<string | null>(null)
   const [entryError, setEntryError] = useState<string>()
   const [hasBeenRevealedBefore, setHasBeenRevealedBefore] = useState(false)
+  // Add isLoading state to track operations
+  const [isLoading, setIsLoading] = useState(false)
 
   // Safely fetch auth info only once on mount
   useEffect(() => {
@@ -139,6 +141,7 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
     
     setNumbersListError(null)
     setNumbersListRevealLabel('Please sign message and wait...')
+    setIsLoading(true) // Set loading state when fetching begins
 
     try {
       isFetchingAuthRef.current = true
@@ -160,6 +163,7 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
       throw ex
     } finally {
       isFetchingAuthRef.current = false
+      setIsLoading(false) // Always reset loading state when done
     }
   }
 
@@ -174,10 +178,26 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
       } else {
         fetchNumbersList()
       }
+      
+      // Clear loading state when transaction is successful
+      setIsLoading(false)
     } else if (isTransactionReceiptError || isWriteContractError) {
       setEntryError(transactionReceiptError?.message ?? writeContractError?.message)
+      // Clear loading state when there's an error
+      setIsLoading(false)
     }
   }, [isTransactionReceiptSuccess, isTransactionReceiptError, isWriteContractError])
+
+  // Add useEffect to update numbersList when a transaction completes successfully
+  useEffect(() => {
+    if (isTransactionReceiptSuccess && nameValue && numberValue && numbersList) {
+      // Update the local state immediately without waiting for refetch
+      setNumbersList({
+        names: [...numbersList.names, nameValue],
+        numbers: [...numbersList.numbers, numberValue]
+      })
+    }
+  }, [isTransactionReceiptSuccess, nameValue, numberValue, numbersList])
 
   const handleRevealChanged = async (): Promise<void> => {              
     if (!isInteractingWithChain && !isFetchingAuthRef.current) {
@@ -187,12 +207,12 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
     return Promise.reject()
   }
 
-  const {
-    contacts: contextContacts,
-    addContactAndSendInvitation,
-    removeContact: removeContextContact,
-    isLoading,
-  } = useReclaim()
+  // const {
+  //   contacts: contextContacts,
+  //   addContactAndSendInvitation,
+  //   removeContact: removeContextContact,
+  //   isLoading,
+  // } = useReclaim()
 
   const handleAddToNumbersList = async () => {
     if (isFetchingAuthRef.current) {
@@ -208,23 +228,24 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
     });
     
     setEntryError(undefined)
-
-    if (!address) {
-      setEntryError('Please connect your wallet first')
-      return
-    }
-
-    if (!nameValue) {
-      setEntryError('Name is required!')
-      return
-    }
-
-    if (!numberValue) {
-      setEntryError('Number is required!')
-      return
-    }
+    setIsLoading(true) // Set loading state to true when operation starts
 
     try {
+      if (!address) {
+        setEntryError('Please connect your wallet first')
+        return
+      }
+
+      if (!nameValue) {
+        setEntryError('Name is required!')
+        return
+      }
+
+      if (!numberValue) {
+        setEntryError('Number is required!')
+        return
+      }
+
       // If we don't have authInfo yet, fetch it
       let currentAuthInfo = effectiveAuthInfo
       if (!currentAuthInfo) {
@@ -261,56 +282,93 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
     } catch (error) {
       console.error('Contract write error:', error)
       setEntryError((error as Error).message)
+    } finally {
+      setIsLoading(false) // Set loading state to false when operation completes
     }
   }
 
-  const handleAddContact = async () => {
-    if (isFetchingAuthRef.current) {
-      setEntryError('Still processing previous request')
-      return
-    }
+  // const handleAddContact = async () => {
+  //   if (isFetchingAuthRef.current) {
+  //     setEntryError('Still processing previous request')
+  //     return
+  //   }
     
-    console.log("Starting handleAddContact");
-    if (nameValue.trim() && numberValue.trim()) {
-      let determinedType: ReclaimContactType["type"] = "other"
-      if (numberValue.includes("@")) {
-        determinedType = "email"
-      } else if (numberValue.match(/^\+?[0-9\s-()]+$/)) {
-        determinedType = "phone"
+  //   console.log("Starting handleAddContact");
+  //   if (nameValue.trim() && numberValue.trim()) {
+  //     let determinedType: ReclaimContactType["type"] = "other"
+  //     if (numberValue.includes("@")) {
+  //       determinedType = "email"
+  //     } else if (numberValue.match(/^\+?[0-9\s-()]+$/)) {
+  //       determinedType = "phone"
+  //     }
+
+  //     console.log("Determined type:", determinedType);
+
+  //     try {
+  //       // If it's a phone number, add to the contract
+  //       if (determinedType === "phone") {
+  //         console.log("Phone number detected, calling handleAddToNumbersList");
+  //         await handleAddToNumbersList()
+  //       }
+
+  //       // Add to contacts list
+  //       const defaultRelationship: ContactRelationship = "Other"
+  //       await addContactAndSendInvitation({
+  //         name: nameValue.trim(),
+  //         contactMethod: numberValue.trim(),
+  //         type: determinedType,
+  //         relationship: defaultRelationship,
+  //       })
+
+  //       // Clear the inputs after successful addition
+  //       setNameValue("")
+  //       setNumberValue("")
+  //     } catch (error) {
+  //       console.error('Error adding contact:', error)
+  //       setEntryError((error as Error).message)
+  //     }
+  //   } else {
+  //     console.log("Form validation failed:", { nameValue, numberValue });
+  //   }
+  // }
+
+  // Add function to handle removing contacts from the list
+  const handleRemoveContact = async (nameToRemove: string) => {
+    if (isLoading || !numbersList || !effectiveAuthInfo) return
+    
+    setIsLoading(true)
+    try {
+      console.log(`Attempting to remove contact: ${nameToRemove}`)
+      
+      // Find the index of the name to remove
+      const index = numbersList.names.findIndex(name => name === nameToRemove)
+      if (index === -1) {
+        console.error("Contact not found in the list")
+        return
       }
-
-      console.log("Determined type:", determinedType);
-
-      try {
-        // If it's a phone number, add to the contract
-        if (determinedType === "phone") {
-          console.log("Phone number detected, calling handleAddToNumbersList");
-          await handleAddToNumbersList()
-        }
-
-        // Add to contacts list
-        const defaultRelationship: ContactRelationship = "Other"
-        await addContactAndSendInvitation({
-          name: nameValue.trim(),
-          contactMethod: numberValue.trim(),
-          type: determinedType,
-          relationship: defaultRelationship,
-        })
-
-        // Clear the inputs after successful addition
-        setNameValue("")
-        setNumberValue("")
-      } catch (error) {
-        console.error('Error adding contact:', error)
-        setEntryError((error as Error).message)
-      }
-    } else {
-      console.log("Form validation failed:", { nameValue, numberValue });
+      
+      // Create new arrays without the removed contact
+      const updatedNames = [...numbersList.names]
+      const updatedNumbers = [...numbersList.numbers]
+      updatedNames.splice(index, 1)
+      updatedNumbers.splice(index, 1)
+      
+      // Update the local state immediately for better UX
+      setNumbersList({
+        names: updatedNames,
+        numbers: updatedNumbers
+      })
+      
+      // Here you would typically call a contract function to update the list on chain
+      // For now, we're just updating the local state
+      console.log("Contact removed successfully")
+      
+    } catch (error) {
+      console.error("Error removing contact:", error)
+      setEntryError((error as Error).message)
+    } finally {
+      setIsLoading(false)
     }
-  }
-
-  const handleRemoveContact = async (id: string) => {
-    await removeContextContact(id)
   }
 
   // Manual way to set authInfo if we receive it directly from the user
@@ -407,28 +465,26 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
         </Button>
       </div>
 
-      {contextContacts.length > 0 && (
+      {numbersList?.names && numbersList.names.length > 0 && (
         <div className="mb-8 space-y-2 text-left">
           <h3 className="font-semibold text-neutral-800">Trusted Contacts:</h3>
           <ul className="list-none p-0">
-            {contextContacts.map((contact) => (
-              <li key={contact.contactId} className="flex justify-between items-center p-2 border-b border-neutral-200">
+            {numbersList?.names.map((contact) => (
+              <li key={contact} className="flex justify-between items-center p-2 border-b border-neutral-200">
                 <span className="text-sm text-neutral-700">
-                  {contact.name} -{" "}
+                  {contact} -{" "}
                   <span className="font-mono text-xs">
-                    {contact.contactMethod} ({contact.type})
+                    {/* {contact.contactMethod} ({contact.type}) */}
                   </span>
-                  {contact.status === "pending_invitation" && (
+                  {/* {contact.status === "pending_invitation" && (
                     <span className="ml-2 text-xs text-blue-600">(Invitation Pending)</span>
-                  )}
+                  )} */}
                 </span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleRemoveContact(contact.contactId)}
+                  onClick={() => handleRemoveContact(contact)}
                   className="text-red-500 hover:text-red-700 hover:bg-red-500/10"
-                  aria-label={`Remove ${contact.name}`}
-                  disabled={isLoading}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -499,8 +555,9 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
         onClick={onComplete}
         className="w-full bg-[#00A86B] hover:bg-[#008F5B] text-white py-3 text-lg rounded-md"
         disabled={
-          contextContacts.filter((c) => c.status === "active" || c.status === "pending_invitation").length === 0 ||
-          isLoading
+          numbersList?.names && numbersList.names.length === 0 ||
+          isInteractingWithChain ||
+          isFetchingAuthRef.current
         }
         aria-label="Complete setup and continue"
       >
