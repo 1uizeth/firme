@@ -58,6 +58,26 @@ Real-time malicious message detection in Telegram groups using Oasis privacy inf
 - **Multi-Platform APIs** – Integration points for Twitter, Discord, Telegram, YouTube
 - **Delegation Framework** – Authority management for trusted parties
 
+## 🏗️ OASIS Architecture Deep Dive
+
+### **Confidential Smart Contract Layer**
+
+- **Creator Registry (Sapphire)** → Encrypted identity storage
+- **Reputation System (Sapphire)** → Private trust score management  
+- **Flagging Coordinator (Sapphire)** → Anonymous report processing
+- **Delegation Manager (Sapphire)** → Confidential authority assignment
+
+### **ROFL Integration Layer**
+
+- Telegram Bot ↔ ROFL Runtime ↔ Sapphire Contracts
+- Real-time Detection → Secure Processing → Private Storage
+
+### **Privacy Guarantees**
+* **Confidential Computing**: All data encrypted during processing
+* **Anonymous Interactions**: Zero user identity exposure
+* **Private Reputation**: Trust scores calculated confidentially
+* **Encrypted Communication**: Secure cross-platform coordination
+
 ---
 
 ## 📁 Repository Structure
