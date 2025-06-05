@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useMemo } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useReclaim } from "@/contexts/reclaim-context"
 import { Button } from "@/components/ui/button"
@@ -16,11 +16,6 @@ import {
   UserCheck,
   ListChecks,
   AlertCircle,
-  Loader2,
-  RefreshCw,
-  CheckCircle,
-  Search,
-  Shield,
 } from "lucide-react"
 import { formatDisplayTimestamp, formatShortTimestamp } from "@/lib/utils" // This import should now work correctly
 import { type ActivityLogEntry, EventType, type UserProfile as UserProfileType } from "@/lib/reclaim-types"
@@ -164,19 +159,16 @@ const formatActivityDetails = (entry: ActivityLogEntry): string => {
 }
 
 export default function DashboardPage() {
-  const router = useRouter()
   const {
     userProfile,
-    contacts,
     activityLog,
     isLoading: contextIsLoading,
     contextError,
-    simulateBreachByContactFlag,
-    initiateRecovery,
     setContextError,
+    simulateBreachByContactFlag,
     resetSessionData,
-    clearLocalStorage,
   } = useReclaim()
+  const router = useRouter()
 
   useEffect(() => {
     if (!contextIsLoading && !userProfile && contextError !== "Cannot simulate breach without a user profile.") {
@@ -184,44 +176,12 @@ export default function DashboardPage() {
     }
   }, [contextIsLoading, userProfile, router, contextError])
 
-  const statusInfo = useMemo(() => {
-    if (!userProfile) return { title: "Loading...", description: "Please wait...", icon: <Loader2 className="h-4 w-4 animate-spin" /> }
-
-    switch (userProfile.currentStatus) {
-      case "compromised":
-        return {
-          title: "Account Compromised",
-          description: "Your account has been compromised. Begin the recovery process to secure your identity.",
-          icon: <AlertTriangle className="h-4 w-4 text-red-500" />,
-          isPhoneIssue: userProfile.breachTriggerDetails?.isPhoneIssue,
-          showRecoveryButton: true,
-        }
-      case "recovering":
-        return {
-          title: "Recovery In Progress",
-          description: "Your account is in the process of being recovered.",
-          icon: <RefreshCw className="h-4 w-4 text-yellow-500" />,
-        }
-      case "recovered":
-        return {
-          title: "Recovery Complete",
-          description: "Your account has been successfully recovered.",
-          icon: <CheckCircle className="h-4 w-4 text-green-500" />,
-        }
-      case "under_review":
-        return {
-          title: "Under Security Review",
-          description: "Your account is being reviewed for potential security issues.",
-          icon: <Search className="h-4 w-4 text-yellow-500" />,
-        }
-      default:
-        return {
-          title: "Account Secure",
-          description: "No security issues detected.",
-          icon: <Shield className="h-4 w-4 text-green-500" />,
-        }
-    }
-  }, [userProfile])
+  const statusInfo = getStatusInfo(userProfile)
+  const icon = userProfile ? (
+    getStatusIcon(userProfile.currentStatus, statusInfo.isPhoneIssue)
+  ) : (
+    <ShieldCheck className="h-6 w-6 text-gray-500" />
+  )
 
   const handleSimulatePhoneBreach = () => {
     if (!userProfile) {
@@ -232,19 +192,7 @@ export default function DashboardPage() {
     router.push("/security-review") // Or a more specific phone review page
   }
 
-  const handleReset = () => {
-    clearLocalStorage()
-    router.refresh()
-  }
-
   const noActiveContactsWarning = contextError === "No active contacts to alert."
-
-  const handleBeginRecovery = () => {
-    if (userProfile?.currentStatus === "compromised") {
-      initiateRecovery()
-      router.push("/recovery-process")
-    }
-  }
 
   if (contextIsLoading) {
     return <div className="flex min-h-screen items-center justify-center">Loading dashboard...</div>
@@ -267,115 +215,147 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-neutral-50">
-      <header className="bg-white border-b border-neutral-200 px-4 py-3">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-semibold text-black">MyMesh Dashboard</h1>
-            <Button
-              onClick={clearLocalStorage}
-              variant="outline"
-              className="text-red-600 border-red-200 hover:bg-red-50"
-            >
-              Clear Data
-            </Button>
-          </div>
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+      <header className="mb-8 flex flex-col sm:flex-row justify-between items-center">
+        <h1 className="text-3xl font-bold text-gray-800">Welcome, {userProfile.name}</h1>
+        <div className="flex gap-2 mt-4 sm:mt-0">
+          <Button onClick={resetSessionData} variant="outline">
+            Reset Session
+          </Button>
+          <Button onClick={handleSimulatePhoneBreach} variant="destructive">
+            Simulate Phone Breach
+          </Button>
         </div>
       </header>
-      <div className="container mx-auto max-w-4xl px-4 py-8">
-        <header className="mb-8 flex justify-between items-center">
-          <h1 className="text-3xl font-semibold text-[#1C1C1C]">Welcome, {userProfile.name}</h1>
-          <div className="flex gap-3">
-            <Button onClick={handleSimulatePhoneBreach} variant="destructive" className="rounded-full px-6">
-              Simulate Phone Breach
-            </Button>
-          </div>
-        </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Security Status */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <div className="flex flex-row items-center justify-between mb-4">
-              <h2 className="text-2xl font-semibold">Security Status</h2>
-              {statusInfo.icon}
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{statusInfo.title}</div>
-              <p className="text-gray-500">{statusInfo.description}</p>
-              {statusInfo.isPhoneIssue && userProfile.currentStatus === "compromised" && userProfile.phoneNumber && (
-                <>
-                  <p className="text-gray-500 mt-1">Monitoring: {userProfile.phoneNumber}</p>
-                  <p className="text-gray-500">Issue Type: {userProfile.breachTriggerDetails?.phoneIssueType}</p>
-                </>
-              )}
-              {statusInfo.showRecoveryButton && (
-                <Button onClick={handleBeginRecovery} className="mt-4 w-full">
-                  Begin Recovery Process
-                </Button>
-              )}
-            </div>
-          </div>
+      {noActiveContactsWarning && (
+        <Card className="mb-6 bg-yellow-50 border-yellow-400">
+          <CardHeader className="flex flex-row items-center gap-2 pb-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-600" />
+            <CardTitle className="text-yellow-700 text-lg">Alerting Issue</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-yellow-700">
+              {contextError} Your contacts could not be notified automatically. Please manage your recovery process
+              accordingly.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Quick Actions */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <div className="flex flex-col space-y-2 mb-4">
-              <h2 className="text-2xl font-semibold">Quick Actions</h2>
-              <p className="text-gray-500">Manage your security and contacts.</p>
-            </div>
-            <div className="flex flex-col space-y-4">
-              <Link href="/manage-contacts" className="block">
-                <div className="flex items-center p-4 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
-                  <UserCheck className="h-5 w-5 text-gray-500 mr-3" />
-                  <span className="text-gray-700">Manage Emergency Contacts</span>
-                </div>
-              </Link>
-              <Link href="/report-phone-issue" className="block">
-                <div className="flex items-center p-4 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
-                  <Smartphone className="h-5 w-5 text-gray-500 mr-3" />
-                  <span className="text-gray-700">Report Phone Security Issue</span>
-                </div>
-              </Link>
-              <Link href="/report-suspicion" className="block">
-                <div className="flex items-center p-4 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
-                  <AlertTriangle className="h-5 w-5 text-gray-500 mr-3" />
-                  <span className="text-gray-700">Report Other Suspicious Activity</span>
-                </div>
-              </Link>
-            </div>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Security Status</CardTitle>
+            {icon}
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{statusInfo.title}</div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{statusInfo.description}</p>
+            {statusInfo.isPhoneIssue && userProfile.currentStatus === "safe" && userProfile.phoneNumber && (
+              <>
+                <p className="text-xs text-gray-500 mt-1">Monitoring: {userProfile.phoneNumber}</p>
+                <p className="text-xs text-gray-500">
+                  Last verified: {formatShortTimestamp(userProfile.lastVerification)}
+                </p>
+              </>
+            )}
+            {!statusInfo.isPhoneIssue && userProfile.currentStatus === "safe" && (
+              <p className="text-xs text-gray-500 mt-1">
+                Last check: {formatShortTimestamp(userProfile.lastVerification)}
+              </p>
+            )}
+          </CardContent>
+          {statusInfo.action && <CardFooter>{statusInfo.action}</CardFooter>}
+        </Card>
 
-        {/* Recent Activity */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <h2 className="text-2xl font-semibold mb-2">Recent Activity</h2>
-          <p className="text-gray-600 mb-6">Overview of recent security events.</p>
-          {activityLog.length > 0 ? (
-            <ul className="space-y-4">
-              {activityLog.slice(0, 5).map((entry) => (
-                <li key={entry.activityId} className="flex items-start gap-3">
-                  <div className="flex-shrink-0 mt-1">
-                    {entry.eventType.includes("PHONE") || entry.details.platform === "Phone Security" ? (
-                      <Smartphone className="h-5 w-5 text-green-500" />
-                    ) : entry.eventType.includes("FAIL") || entry.eventType.includes("COMPROMISE") ? (
-                      <AlertTriangle className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <ShieldCheck className="h-5 w-5 text-green-500" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">
-                      {entry.eventType.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                    </p>
-                    <p className="text-sm text-gray-500">{formatActivityDetails(entry)}</p>
-                    <p className="text-sm text-gray-400">{formatDisplayTimestamp(entry.timestamp)}</p>
-                  </div>
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Manage your security and contacts.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            <Link href="/manage-contacts">
+              <Button variant="outline" className="w-full justify-start">
+                <UserCheck className="mr-2 h-4 w-4" /> Manage Emergency Contacts
+              </Button>
+            </Link>
+            <Link href="/report-phone-issue">
+              <Button variant="outline" className="w-full justify-start">
+                <Smartphone className="mr-2 h-4 w-4" /> Report Phone Security Issue
+              </Button>
+            </Link>
+            <Link href="/report-suspicion">
+              <Button variant="outline" className="w-full justify-start">
+                <AlertTriangle className="mr-2 h-4 w-4" /> Report Other Suspicious Activity
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {(userProfile.currentStatus === "recovering" || userProfile.currentStatus === "compromised") && (
+          <Card className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle>Recovery Checklist</CardTitle>
+              <CardDescription>Steps to secure your account.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-center">
+                  <ListChecks className="mr-2 h-4 w-4 text-green-500" /> Secure primary email
                 </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-500 text-center py-4">No recent activity.</p>
-          )}
-        </div>
+                <li className="flex items-center">
+                  <ListChecks className="mr-2 h-4 w-4 text-gray-400" /> Change critical passwords
+                </li>
+                <li className="flex items-center">
+                  <ListChecks className="mr-2 h-4 w-4 text-gray-400" /> Review active sessions
+                </li>
+              </ul>
+            </CardContent>
+            <CardFooter>
+              <Link href="/recovery-process">
+                <Button variant="secondary" className="w-full">
+                  Full Recovery Guide
+                </Button>
+              </Link>
+            </CardFooter>
+          </Card>
+        )}
+
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Overview of recent security events.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {activityLog.length > 0 ? (
+              <ul className="space-y-3">
+                {activityLog.slice(0, 5).map((entry) => (
+                  <li key={entry.activityId} className="flex items-start space-x-3 p-2 rounded-md hover:bg-gray-100">
+                    <div className="flex-shrink-0 pt-1">
+                      {entry.eventType.includes("PHONE") || entry.details.platform === "Phone Security" ? (
+                        <Smartphone className="h-5 w-5 text-blue-500" />
+                      ) : entry.eventType.includes("FAIL") || entry.eventType.includes("COMPROMISE") ? (
+                        <AlertTriangle className="h-5 w-5 text-red-500" />
+                      ) : (
+                        <ShieldCheck className="h-5 w-5 text-green-500" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">
+                        {entry.eventType.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                      </p>
+                      <p className="text-xs text-gray-500">{formatActivityDetails(entry)}</p>
+                      <p className="text-xs text-gray-400">{formatDisplayTimestamp(entry.timestamp)}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-500">No recent activity.</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation"
 import { useReclaim } from "@/contexts/reclaim-context" // Import useReclaim
 import { useEffect } from "react"
 import { formatDisplayTimestamp } from "@/lib/utils" // Use consistent formatter
-import { EventType } from "@/lib/reclaim-types"
 
 // Mock data - these could eventually come from the breach details or user settings
 const generatedPassphrase = "crimson-sentinel-vector-omega-void"
@@ -16,7 +15,7 @@ const compromisedAccountsList = ["WhatsApp"]
 
 export default function BreachAlertPage() {
   const router = useRouter()
-  const { userProfile, isLoading, contextError, initiateRecovery, sendAlertsToContacts, logActivity, updateUserProfile } = useReclaim()
+  const { userProfile, isLoading, error, initiateRecovery, sendAlertsToContacts, logActivity } = useReclaim()
 
   // Redirect if not compromised or no trigger details
   useEffect(() => {
@@ -31,7 +30,7 @@ export default function BreachAlertPage() {
     // In a real app, this would trigger the camera and recording logic.
     // After successful recording, it might enable further actions or move to a new state.
     if (userProfile) {
-      await logActivity(EventType.IDENTITY_REVERIFIED, { method: "breach_response_video_simulation" })
+      await logActivity("identity_reverified", { method: "breach_response_video_simulation" })
       // Potentially update userProfile state here if verification unlocks actions
     }
   }
@@ -45,36 +44,10 @@ export default function BreachAlertPage() {
   }
 
   const handleBeginRecovery = async () => {
-    if (userProfile) {
-      // First, ensure alerts are sent to contacts
-      const alertsSent = await sendAlertsToContacts(compromisedAccountsList)
-      if (!alertsSent) {
-        alert("Please add active contacts before beginning recovery.")
-        return
-      }
-      
-      // Ensure the user is marked as compromised with proper breach details
-      if (userProfile.currentStatus !== "compromised") {
-        const breachDetails = {
-          type: "user_confirmed_review" as const,
-          reason: "User confirmed compromise during breach alert",
-          timestamp: new Date().toISOString(),
-          reportedPlatforms: compromisedAccountsList,
-        }
-        updateUserProfile({
-          currentStatus: "compromised",
-          breachTriggerDetails: breachDetails,
-        })
-        await logActivity(EventType.SECURITY_REVIEW_COMPROMISE_CONFIRMED, {
-          reason: breachDetails.reason,
-          platforms: breachDetails.reportedPlatforms,
-        })
-      }
-      
-      // Then initiate the recovery process
-      await initiateRecovery()
-      router.push("/recovery-process")
-    }
+    await initiateRecovery()
+    alert("Recovery process initiated. You might be guided through further steps.")
+    // Potentially navigate to a recovery status page or first step of recovery
+    router.push("/dashboard") // Or a dedicated recovery status page
   }
 
   if (isLoading) {
@@ -85,10 +58,10 @@ export default function BreachAlertPage() {
     )
   }
 
-  if (contextError) {
+  if (error) {
     return (
       <div className="container mx-auto max-w-2xl px-4 py-10 md:py-16 text-center text-red-600">
-        <p>Error: {contextError}</p>
+        <p>Error: {error}</p>
         <Button onClick={() => router.push("/dashboard")} className="mt-4">
           Go to Dashboard
         </Button>

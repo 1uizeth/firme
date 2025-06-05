@@ -18,12 +18,12 @@ export default function DescriptionStep({ onDescriptionSubmitted, initialDescrip
 
   return (
     <div>
-      <p className="text-neutral-700 mb-4 text-lg text-center">Describe the suspicious behavior (include everyhting that supports your claim - examples are welcome).</p>
+      <p className="text-neutral-700 mb-4 text-lg text-center">Describe the suspicious behavior (optional).</p>
       <Textarea
         value={description}
         onChange={(e) => setDescription(e.target.value.slice(0, MAX_CHARS))}
         placeholder="Example: Strange messages asking for money, unusual posts, account behavior changes..."
-        className="min-h-[120px] border-neutral-300 focus:border-[#635BFF] mb-2"
+        className="min-h-[120px] border-neutral-300 focus:border-[#00A86B] mb-2"
         maxLength={MAX_CHARS}
       />
       <p className={`text-xs mb-6 text-right ${charsLeft < 0 ? "text-red-500" : "text-neutral-500"}`}>
@@ -39,7 +39,7 @@ export default function DescriptionStep({ onDescriptionSubmitted, initialDescrip
         </Button>
         <Button
           onClick={() => onDescriptionSubmitted(description)}
-          className="w-full sm:flex-1 bg-[#635BFF] hover:bg-[#635BFF]/90 text-white py-3 text-lg rounded-md"
+          className="w-full sm:flex-1 bg-[#00A86B] hover:bg-[#008F5B] text-white py-3 text-lg rounded-md"
         >
           Next: Review Report
         </Button>

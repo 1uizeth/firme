@@ -8,62 +8,58 @@ import {
   EventType,
   type ReviewRequestDetails,
   type BreachReport,
-  type Notification,
+  type Notification, // Ensure Notification type is imported
 } from "@/lib/reclaim-types"
-// This import should now work correctly
 import { DEMO_USER_PROFILE, DEMO_CONTACTS, DEMO_ACTIVITY_LOG, DEMO_NOTIFICATIONS } from "@/lib/demo-data"
 
 interface ReclaimContextType {
   userProfile: UserProfile | null
   contacts: Contact[]
   activityLog: ActivityLogEntry[]
-  notifications: Notification[]
+  notifications: Notification[] // Added notifications
   isLoading: boolean
   contextError: string | null
   setContextError: (error: string | null) => void
   updateUserProfile: (updates: Partial<UserProfile>) => void
   addContact: (
     contactData: Omit<Contact, "contactId" | "userId" | "addedAt" | "status" | "lastNotified">,
-  ) => Promise<void> // Simplified for addContactAndSendInvitation
+  ) => Promise<void>
   updateContact: (contactId: string, updates: Partial<Omit<Contact, "contactId" | "userId">>) => Promise<void>
   removeContact: (contactId: string) => Promise<void>
-  addActivityLogEntry: (eventType: EventType, details: Record<string, any>, systemSource?: string) => Promise<void>
-  setContacts: (contacts: Contact[]) => void // Keep for direct manipulation if needed
+  addActivityLogEntry: (entry: Omit<ActivityLogEntry, "activityId" | "userId" | "timestamp" | "systemSource">) => void
+  setContacts: (contacts: Contact[]) => void
+  setNotifications: (notifications: Notification[]) => void // Added setNotifications
   currentBreachReport: BreachReport | null
   setCurrentBreachReport: (report: BreachReport | null) => void
   reportSuspicion: (report: BreachReport) => void
   confirmCompromiseAfterReview: (isPhoneIssue?: boolean, phoneIssueType?: string) => void
-  resolveAsFalseAlarm: () => void // Renamed from dismissAsFalseAlarm for clarity
+  resolveAsFalseAlarm: () => void
   initiateRecovery: () => void
-  sendAlertsToContacts: (affectedPlatforms?: string[]) => boolean // Added affectedPlatforms
+  sendAlertsToContacts: (affectedPlatforms?: string[]) => boolean
   simulateBreachByContactFlag: (contactName: string, isPhoneBreach?: boolean, phoneIssueType?: string) => void
   resetSessionData: () => void
   setPhoneNumber: (phoneNumber: string) => void
-  // New functions from manage-contacts page
   addContactAndSendInvitation: (
     contactData: Pick<Contact, "name" | "contactMethod" | "type" | "relationship">,
   ) => Promise<void>
   resendInvitation: (contactId: string) => Promise<void>
   simulateAcceptInvitation: (contactId: string) => Promise<void>
   checkAndExpireInvitations: () => void
-  // New functions from security-review page
   initiateSecurityReview: () => void
-  dismissAsFalseAlarm: (messageToContact?: string) => Promise<void> // For false alarm screen
-  // New functions from recovery-process page
+  dismissAsFalseAlarm: (messageToContact?: string) => Promise<void>
   sendRecoveryMessage: (message: string, additionalContext?: string) => Promise<void>
   simulateContactRecoveryVotes: () => Promise<void>
   completeRecovery: () => Promise<void>
-  logActivity: (eventType: EventType, details: Record<string, any>, systemSource?: string) => Promise<void> // For general logging
+  logActivity: (eventType: EventType, details: Record<string, any>, systemSource?: string) => Promise<void>
   reportSuspicionByEmergencyContact: (
     platforms: string[],
     description: string,
     reportingContactName: string,
   ) => Promise<void>
-  clearLocalStorage: () => void
 }
 
 const initialUserProfile: UserProfile = {
-  ...DEMO_USER_PROFILE, // DEMO_USER_PROFILE already has phoneNumber
+  ...DEMO_USER_PROFILE,
 }
 
 const ReclaimContext = createContext<ReclaimContextType | undefined>(undefined)
@@ -72,7 +68,7 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([])
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [notifications, setNotifications] = useState<Notification[]>([]) // Added notifications state
   const [isLoading, setIsLoading] = useState(true)
   const [contextError, setContextError] = useState<string | null>(null)
   const [currentBreachReport, setCurrentBreachReport] = useState<BreachReport | null>(null)
@@ -99,7 +95,7 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
         const storedUserProfile = localStorage.getItem("userProfile")
         const storedContacts = localStorage.getItem("contacts")
         const storedActivityLog = localStorage.getItem("activityLog")
-        const storedNotifications = localStorage.getItem("notifications")
+        const storedNotifications = localStorage.getItem("notifications") // Load notifications
 
         if (storedUserProfile) {
           setUserProfile(JSON.parse(storedUserProfile))
@@ -120,9 +116,9 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
         }
 
         if (storedNotifications) {
-          setNotifications(JSON.parse(storedNotifications))
+          setNotifications(JSON.parse(storedNotifications)) // Set notifications from localStorage
         } else {
-          setNotifications(DEMO_NOTIFICATIONS)
+          setNotifications(DEMO_NOTIFICATIONS) // Default to demo notifications
         }
       } catch (error) {
         console.error("Error loading data from localStorage:", error)
@@ -130,7 +126,7 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
         setUserProfile(initialUserProfile)
         setContacts(DEMO_CONTACTS)
         setActivityLog(DEMO_ACTIVITY_LOG)
-        setNotifications(DEMO_NOTIFICATIONS)
+        setNotifications(DEMO_NOTIFICATIONS) // Default on error
       } finally {
         setIsLoading(false)
       }
@@ -139,11 +135,11 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   const saveData = useCallback(() => {
-    if (isLoading) return // Don't save while initially loading
+    if (isLoading) return
     if (userProfile) localStorage.setItem("userProfile", JSON.stringify(userProfile))
     localStorage.setItem("contacts", JSON.stringify(contacts))
     localStorage.setItem("activityLog", JSON.stringify(activityLog))
-    localStorage.setItem("notifications", JSON.stringify(notifications))
+    localStorage.setItem("notifications", JSON.stringify(notifications)) // Save notifications
   }, [userProfile, contacts, activityLog, notifications, isLoading])
 
   useEffect(() => {
@@ -171,7 +167,7 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
       status: "pending_invitation",
       lastNotified: null,
       invitationSentAt: now.toISOString(),
-      invitationExpiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days expiry
+      invitationExpiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     }
     setContacts((prev) => [...prev, newContact])
     await logActivity(EventType.INVITATION_SENT, { contactName: newContact.name, method: newContact.contactMethod })
@@ -179,14 +175,11 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
 
   const updateContactState = async (contactId: string, updates: Partial<Omit<Contact, "contactId" | "userId">>) => {
     setContacts((prev) => prev.map((c) => (c.contactId === contactId ? { ...c, ...updates, userId: c.userId } : c)))
-    // Consider logging specific updates if needed
   }
 
   const removeContactState = async (contactId: string) => {
     const contactToRemove = contacts.find((c) => c.contactId === contactId)
     if (contactToRemove) {
-      // Instead of filtering out, mark as 'removed' if you want to keep a record
-      // For now, let's filter out for simplicity as per original behavior in manage-contacts
       setContacts((prev) => prev.filter((c) => c.contactId !== contactId))
       await logActivity(EventType.CONTACT_REMOVED, { contactName: contactToRemove.name })
     }
@@ -210,7 +203,7 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
       await updateContactState(contactId, {
         status: "active",
         invitationAcceptedAt: new Date().toISOString(),
-        lastNotified: new Date().toISOString(), // Mark as notified upon activation
+        lastNotified: new Date().toISOString(),
       })
       await logActivity(EventType.INVITATION_ACCEPTED, { contactName: contact.name })
       await logActivity(EventType.CONTACT_ACTIVATED, { contactName: contact.name })
@@ -220,30 +213,23 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
   const checkAndExpireInvitations = useCallback(() => {
     const now = new Date()
     let changed = false
-    const updatedContacts = contacts.map((contact) => {
+    contacts.forEach((contact) => {
       if (
         contact.status === "pending_invitation" &&
         contact.invitationExpiresAt &&
         new Date(contact.invitationExpiresAt) < now
       ) {
-        // Optionally log expiry here or let manage-contacts handle display
-        // For now, just update status if needed, or rely on display logic
-        // To make it explicit, we can add an "expired" status or just let UI handle it.
-        // The current UI logic in manage-contacts handles display of expired.
-        // No state change needed here unless we want a specific "expired" status.
-        changed = true // Just to indicate a check happened
+        changed = true
       }
-      return contact
     })
     if (changed) {
-      // setContacts(updatedContacts); // Only if actual status changes
-      console.log("Checked for expired invitations.")
+      console.log("Checked for expired invitations. Some might be expired.")
     }
   }, [contacts])
 
   useEffect(() => {
     checkAndExpireInvitations()
-    const interval = setInterval(checkAndExpireInvitations, 60 * 60 * 1000) // Check every hour
+    const interval = setInterval(checkAndExpireInvitations, 60 * 60 * 1000)
     return () => clearInterval(interval)
   }, [checkAndExpireInvitations])
 
@@ -278,12 +264,13 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
 
   const confirmCompromiseAfterReview = (isPhoneIssue?: boolean, phoneIssueType?: string) => {
     if (!userProfile) return
+    const now = new Date().toISOString()
     const breachDetails = {
       type: "user_confirmed_review" as const,
       reason: isPhoneIssue
         ? `Phone issue confirmed: ${phoneIssueType || "General"}`
         : "User confirmed compromise during review",
-      timestamp: new Date().toISOString(),
+      timestamp: now,
       reportedPlatforms: userProfile.reviewRequestDetails?.reportedPlatforms || ["Unknown"],
       isPhoneIssue: isPhoneIssue,
       phoneIssueType: phoneIssueType,
@@ -291,7 +278,7 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
     updateUserProfile({
       currentStatus: "compromised",
       breachTriggerDetails: breachDetails,
-      recoveryStage: "alerting_contacts", // Start recovery process
+      recoveryStage: "alerting_contacts",
     })
     logActivity(isPhoneIssue ? EventType.PHONE_COMPROMISE_CONFIRMED : EventType.SECURITY_REVIEW_COMPROMISE_CONFIRMED, {
       reason: breachDetails.reason,
@@ -299,11 +286,10 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
       ...(isPhoneIssue && { phoneIssueType: phoneIssueType }),
     })
     setContextError(null)
-    sendAlertsToContacts(breachDetails.reportedPlatforms)
+    sendAlertsToContacts(breachDetails.reportedPlatforms, now) // Pass timestamp for notifications
   }
 
   const resolveAsFalseAlarm = () => {
-    // This is the old one, new one is dismissAsFalseAlarm
     if (!userProfile) return
     const reportingContactName = userProfile.reviewRequestDetails?.reportingContactName
     updateUserProfile({
@@ -329,23 +315,58 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
       { stage: "alerting_contacts" },
     )
     setContextError(null)
-    // Alerts should have been sent when compromise was confirmed.
-    // If not, or if re-alerting is desired, call sendAlertsToContacts() here.
+    // Alerts are now sent via confirmCompromiseAfterReview
   }
 
-  const sendAlertsToContacts = (affectedPlatforms: string[] = ["Unknown"]): boolean => {
+  const sendAlertsToContacts = (affectedPlatforms: string[] = ["Unknown"], alertTimestamp?: string): boolean => {
+    if (!userProfile) return false
     const activeContacts = contacts.filter((c) => c.status === "active")
     if (activeContacts.length === 0) {
       console.warn("No active contacts to alert.")
       setContextError("No active contacts to alert.")
       return false
     }
-    activeContacts.forEach((contact) => {
-      console.log(
-        `Simulating alert to ${contact.name} via ${contact.contactMethod} about ${affectedPlatforms.join(", ")}`,
-      )
-      updateContactState(contact.contactId, { lastNotified: new Date().toISOString() })
+    const sentAt = alertTimestamp || new Date().toISOString()
+    const newNotifications: Notification[] = activeContacts.map((contact) => ({
+      notificationId: `notif_${userProfile.userId}_${contact.contactId}_${Date.now()}`,
+      userId: userProfile.userId,
+      contactId: contact.contactId,
+      messageContent: `Security alert: ${userProfile.name}'s identity may be compromised. Verified: ${
+        userProfile.lastVerification ? new Date(userProfile.lastVerification).toLocaleTimeString() : "N/A"
+      } Affected Systems: ${affectedPlatforms.join(", ")}. Do not trust communications from these systems. Signed: ReclaimSystemSig`,
+      sentAt: sentAt,
+      deliveryStatus: "pending", // Simulate pending, then update to sent/delivered
+      notificationType: "breach_alert",
+    }))
+
+    setNotifications((prev) => [...prev, ...newNotifications])
+
+    // Simulate delivery status updates
+    newNotifications.forEach((notif) => {
+      setTimeout(
+        () => {
+          setNotifications((prevNots) =>
+            prevNots.map((n) => (n.notificationId === notif.notificationId ? { ...n, deliveryStatus: "sent" } : n)),
+          )
+          setTimeout(
+            () => {
+              setNotifications((prevNots) =>
+                prevNots.map((n) =>
+                  n.notificationId === notif.notificationId ? { ...n, deliveryStatus: "delivered" } : n,
+                ),
+              )
+            },
+            1500 + Math.random() * 1000,
+          ) // Simulate delivery delay
+        },
+        500 + Math.random() * 500,
+      ) // Simulate sending delay
     })
+
+    activeContacts.forEach((contact) => {
+      updateContactState(contact.contactId, { lastNotified: sentAt })
+    })
+
     logActivity(EventType.CONTACTS_ALERTED, {
       count: activeContacts.length,
       contactIds: activeContacts.map((c) => c.contactId),
@@ -403,12 +424,10 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
     setUserProfile(freshUserProfile)
     setContacts(DEMO_CONTACTS)
     setActivityLog(DEMO_ACTIVITY_LOG)
+    setNotifications(DEMO_NOTIFICATIONS) // Reset notifications
     setCurrentBreachReport(null)
     setContextError(null)
-    // localStorage.setItem("userProfile", JSON.stringify(freshUserProfile)); // Done by useEffect
-    // localStorage.setItem("contacts", JSON.stringify(DEMO_CONTACTS));
-    // localStorage.setItem("activityLog", JSON.stringify(DEMO_ACTIVITY_LOG));
-    setIsLoading(false) // Set loading to false after reset
+    setIsLoading(false)
     logActivity(EventType.SYSTEM_CHECK_COMPLETED, { action: "Session data reset" })
   }
 
@@ -419,7 +438,6 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  // --- Functions for security-review page ---
   const initiateSecurityReview = async () => {
     if (userProfile && userProfile.currentStatus === "under_review") {
       await logActivity(EventType.SECURITY_REVIEW_INITIATED, {
@@ -442,7 +460,6 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
       notifiedContact: reportingContactName || "N/A",
     })
     if (reportingContactName && messageToContact) {
-      // Simulate notifying contact
       console.log(`Simulating notification to ${reportingContactName}: ${messageToContact}`)
       await logActivity(EventType.SECURITY_REVIEW_CONTACT_NOTIFIED_OF_RESOLUTION, {
         contactName: reportingContactName,
@@ -454,7 +471,6 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
     setContextError(null)
   }
 
-  // --- Functions for recovery-process page ---
   const sendRecoveryMessage = async (message: string, additionalContext?: string) => {
     if (!userProfile || userProfile.currentStatus !== "recovering") return
     await logActivity(EventType.RECOVERY_MESSAGE_COMPOSED, {
@@ -462,7 +478,6 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
       contextPreview: additionalContext?.substring(0, 50),
       contactsNotified: contacts.filter((c) => c.status === "active").length,
     })
-    // Simulate sending this message to contacts (e.g., update notifications or log)
     console.log("Simulating sending recovery message:", message, additionalContext)
     alert("Recovery message (simulated) sent to contacts.")
   }
@@ -472,7 +487,7 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
     const activeContacts = contacts.filter((c) => c.status === "active")
     let votesFor = 0
     activeContacts.forEach((contact) => {
-      const vote = Math.random() > 0.2 // 80% chance of approval
+      const vote = Math.random() > 0.2
       if (vote) votesFor++
       updateContactState(contact.contactId, {
         recoveryVoteStatus: vote ? "approved" : "denied",
@@ -483,8 +498,6 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
         vote: vote ? "approved" : "denied",
       })
     })
-    // Check if recovery can proceed
-    // This logic might be more complex (e.g., threshold)
     if (votesFor >= Math.ceil(activeContacts.length / 2) && activeContacts.length > 0) {
       updateUserProfile({ recoveryStage: "finalizing" })
       await logActivity(EventType.SOCIAL_VOTING_INITIATED, {
@@ -498,7 +511,6 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
         votesFor,
         totalVotes: activeContacts.length,
       })
-      // Potentially set an error or different state if voting fails
     }
   }
 
@@ -516,32 +528,24 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
   const reportSuspicionByEmergencyContact = async (
     platforms: string[],
     description: string,
-    reportingContactName: string, // Name of the logged-in emergency contact
+    reportingContactName: string,
   ) => {
     if (!userProfile) {
-      // This function is called by an emergency contact ABOUT the userProfile.
-      // So, userProfile here refers to the person being monitored.
-      // We need to ensure this is clear. For now, assume userProfile is the one being reported on.
       setContextError("Target user profile not loaded.")
       return
     }
-
     const reviewDetails: ReviewRequestDetails = {
-      reportingContactName: reportingContactName, // This should be the emergency contact's name
-      // reportingContactId: find the ID if available, or pass name
+      reportingContactName: reportingContactName,
       reportedPlatforms: platforms,
       reportDescription: description,
       timestamp: new Date().toISOString(),
-      // Determine if it's a phone issue based on platforms or a dedicated flag from form
       isPhoneIssue: platforms.some((p) => p.toLowerCase().includes("phone")),
       phoneIssueType: platforms.some((p) => p.toLowerCase().includes("phone")) ? "General Phone Concern" : undefined,
     }
-
     updateUserProfile({
       currentStatus: "under_review",
       reviewRequestDetails: reviewDetails,
     })
-
     await logActivity(
       reviewDetails.isPhoneIssue
         ? EventType.PHONE_SECURITY_ISSUE_REPORTED_BY_CONTACT
@@ -549,7 +553,7 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
       {
         contactName: reportingContactName,
         platforms: platforms.join(", "),
-        description: description.substring(0, 100), // Log a preview
+        description: description.substring(0, 100),
         ...(reviewDetails.isPhoneIssue && { phoneIssueType: reviewDetails.phoneIssueType }),
       },
       "EmergencyContactReport",
@@ -557,25 +561,13 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
     setContextError(null)
   }
 
-  const clearLocalStorage = useCallback(() => {
-    localStorage.removeItem("userProfile")
-    localStorage.removeItem("contacts")
-    localStorage.removeItem("activityLog")
-    localStorage.removeItem("notifications")
-    setUserProfile(initialUserProfile)
-    setContacts(DEMO_CONTACTS)
-    setActivityLog(DEMO_ACTIVITY_LOG)
-    setNotifications(DEMO_NOTIFICATIONS)
-    setContextError(null)
-  }, [])
-
   return (
     <ReclaimContext.Provider
       value={{
         userProfile,
         contacts,
         activityLog,
-        notifications,
+        notifications, // Provide notifications
         isLoading,
         contextError,
         setContextError,
@@ -585,6 +577,7 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
         removeContact: removeContactState,
         addActivityLogEntry: logActivity,
         setContacts,
+        setNotifications, // Provide setNotifications
         currentBreachReport,
         setCurrentBreachReport,
         reportSuspicion,
@@ -595,7 +588,6 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
         simulateBreachByContactFlag,
         resetSessionData,
         setPhoneNumber,
-        clearLocalStorage,
         addContactAndSendInvitation,
         resendInvitation,
         simulateAcceptInvitation,

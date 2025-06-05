@@ -20,31 +20,25 @@ export default function OnboardingPage() {
     }
   }
 
-  const handlePreviousStep = () => {
-    if (currentStep > 1 && currentStep <= TOTAL_STEPS) {
-      setCurrentStep((prev) => prev - 1)
-    }
-  }
+  // In a real app, you might want a back button
+  // const handlePreviousStep = () => {
+  //   if (currentStep > 1 && currentStep <= TOTAL_STEPS) {
+  //     setCurrentStep((prev) => prev - 1);
+  //   }
+  // };
 
   const renderStep = () => {
-    const commonProps = {
-      onNextStep: handleNextStep,
-      onBack: handlePreviousStep,
-      currentStep,
-      totalSteps: TOTAL_STEPS
-    }
-
     switch (currentStep) {
       case 1:
-        return <Step1Auth {...commonProps} />
+        return <Step1Auth onNextStep={handleNextStep} currentStep={currentStep} totalSteps={TOTAL_STEPS} />
       case 2:
-        return <Step2IdentityProof {...commonProps} />
+        return <Step2IdentityProof onNextStep={handleNextStep} currentStep={currentStep} totalSteps={TOTAL_STEPS} />
       case 3:
-        return <Step3EmergencyContacts onComplete={handleNextStep} onBack={handlePreviousStep} currentStep={currentStep} totalSteps={TOTAL_STEPS} />
+        return <Step3EmergencyContacts onComplete={handleNextStep} currentStep={currentStep} totalSteps={TOTAL_STEPS} />
       case TOTAL_STEPS + 1:
         return <CompletionScreen />
       default:
-        return <Step1Auth {...commonProps} />
+        return <Step1Auth onNextStep={handleNextStep} currentStep={1} totalSteps={TOTAL_STEPS} />
     }
   }
 

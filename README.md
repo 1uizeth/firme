@@ -1,61 +1,135 @@
-##   🛡️ Anti-Hack Toolkit
+# MyMesh  
+**Your reputation, protected by your network.**
 
-Protect your digital identity. Preserve immutable proof of attack.
+A seamless, privacy-first platform to protect crypto creators from impersonation and reputation attacks. Built with Civic Auth + Wagmi + Oasis Sapphire, MyMesh provides completely abstracted Web3 interactions to **detect malicious content**, **verify creator authenticity**, and **delegate reputation management** without exposing user privacy or requiring crypto knowledge.
 
-A decentralized, privacy-first protocol that empowers users whose accounts have been hacked or impersonated. Built on Oasis Sapphire and ROFL, Anti-Hack Toolkit provides censorship-resistant infrastructure to detect, report, and preserve proof of malicious activity—while keeping both reporters and victims completely anonymous.
 
-⸻
+![Image](https://github.com/1uizeth/mymesh/blob/f57329882d5304b5bdc7e393bac55ba3766c4213/public/cover.png)
 
-## ✊ Why Anti-Hack Toolkit?
 
-In today’s digital world, account takeovers, impersonation scams, and malicious messages can leave victims without recourse or evidence. Traditional approaches—screenshots, chat logs, centralized takedown requests—are:
-	•	Mutable or tampered: Screenshots can be edited, logs can be deleted.
-	•	Privacy-compromising: Reporting often exposes personal data of both victim and reporter.
-	•	Slow or fragmented: Cross-platform reporting requires multiple channels and does not guarantee permanent proof.
+## 🎯 What We Built
 
-Blockchain is essential: only on-chain records are tamper-proof, decentralized, and permanent. Anti-Hack Toolkit leverages Oasis’s confidential EVM (Sapphire) and secure TEE (ROFL) to give hacked users and bystanders a clear, privacy-preserving way to detect wrongdoing, preserve evidence, and coordinate recovery—without exposing identities.
+**MyMesh** integrates Oasis privacy technology into **two distinct clients** that work together to provide comprehensive creator protection:
 
-⸻
+### 🌐 Web Application
+- **Seamless Login**: Civic Auth + Wagmi integration for zero-friction Web3 interactions
+- **Creator Search & Verification**: Check authenticity and impersonation status across platforms
+- **Multi-Platform Flagging**: Report suspicious content on Twitter, Discord, Telegram, YouTube
+- **Authority Delegation**: Creators can register and delegate reputation management to trusted parties
+- **Flag Management**: Trusted authorities handle community reports and maintain creator reputation
 
-## 🔍 What It Does
+### 🤖 Telegram Bot
+- **Real-Time Detection**: Fast identification of potentially malicious messages in Telegram groups
+- **Privacy Preservation**: Anonymous reporting that protects both reporter and reported party identities
+- **Instant Alerts**: Immediate notifications about suspicious content without revealing user data
 
-## 1️⃣ Malicious Message Detection (Telegram Client)
-	•	Privacy-preserving phishing/reporting:
-Users forward suspicious Telegram messages into a confidential monitoring bot.
-ROFL verifies that the report comes from a trusted, anonymized origin, and Sapphire stores an encrypted record of the malicious content.
-	•	Fast alerts: The bot automatically scans for known phishing patterns or impersonation attempts and warns users in real time—without ever revealing who reported the message.
+Both clients interact with **Oasis Sapphire contracts** in a completely abstracted way, ensuring users benefit from Web3 privacy guarantees through familiar Web2 interfaces.
 
-## 2️⃣ Cross-Platform Impersonation Flags (Web App)
-	•	Creator-verification lookup:
-Anyone can search for a “favorite creator” (social handle, username, etc.) to see if a hijacked or impersonated account has been flagged on Telegram, Twitter, Instagram, or other platforms.
-	•	Flag suspicious content:
-Users click “Raise Flag” next to a detected impersonator. That action triggers a confidential on-chain transaction (via Sapphire) that permanently anchors proof of impersonation.
-	•	Delegated reputation management:
-Verified creators (or organizations) can register a “recovery delegate” (trusted lawyer, community moderator, or friend) to handle all flags over time—preventing attackers from degrading their online reputation.
+---
 
-⸻
+## 🔍 Key Features Built
 
-## 🔑 Feature Examples
+### 🔐 Seamless Web3 Integration
+Users interact with familiar social login flows while Oasis smart contracts handle privacy-preserving reputation management behind the scenes. **No crypto knowledge required**.
 
-## 1️⃣ Telegram-Based Malicious Message Reporting
+### 🚩 Cross-Platform Protection
+Report and track suspicious content across Twitter, Discord, Telegram, and YouTube from a single interface with unified threat coordination.
 
-“I received a private message claiming to be from @TrustedSupportBot asking for my seed phrase. I forwarded that chat to the Anti-Hack Telegram bot. Within seconds, the bot responded: ‘This message matches a known phishing pattern. Be careful!’ Best of all, no one ever knew which user reported it—my privacy was preserved.”
+### 👥 Delegation System
+Busy creators can register on the platform and delegate reputation management to trusted moderators who handle flag resolution and authenticity verification on their behalf.
 
-	•	Encrypted, confidential record: The original malicious payload is stored under an encrypted pointer on Sapphire.
-	•	Real-time detection: ROFL’s off-chain logic evaluates message hashes against a curated threat database without leaking content.
-	•	Immutable proof: Even if the malicious account is later deleted, the on-chain record remains.
+### 🤖 Private Telegram Detection
+Real-time malicious message detection in Telegram groups using Oasis privacy infrastructure to protect all parties involved in reporting.
 
-⸻
+---
 
-## ⚙️ How It Works
+## ⚙️ Technical Implementation
 
-## 🔧 Tech Overview
-	•	Oasis Sapphire – Confidential EVM that encrypts smart contract state and keeps on-chain records private.
-	•	Oasis ROFL – A secure TEE environment for off-chain logic (e.g., malicious message scanning, impersonation pattern matching).
-	•	Civic + Wagmi Frontend –
-	•	CivicAuth handles walletless, wallet-bound login, so end users never manage private keys directly.
-	•	Wagmi + RainbowKit provides a seamless “Connect Wallet” experience.
-	•	Telegram Bot Integration – A TEE-signed bot endpoint that receives forwarded messages, runs ROFL checks, then logs a confidential entry on Sapphire.
-	•	Web App – Users connect via Civic + Wagmi to a Sapphire contract that tracks impersonation flags. Creators can register delegates to manage flags.
+### 🔧 Frontend Stack
+- **Civic Auth + Wagmi** – Seamless Web3 login with complete abstraction
+- **Next.js** – Familiar Web2 interface with Web3 backend
+- **Oasis Sapphire Integration** – Privacy-preserving smart contract interactions
 
-⸻
+### 🤖 Telegram Client
+- **Python Bot** – Real-time threat detection in Telegram groups
+- **Oasis Privacy Layer** – Anonymous reporting with identity protection
+- **Cross-Platform Coordination** – Unified threat tracking across all platforms
+
+### 🔐 Backend Infrastructure  
+- **Oasis Sapphire Contracts** – Privacy-preserving creator registry and reputation management
+- **Multi-Platform APIs** – Integration points for Twitter, Discord, Telegram, YouTube
+- **Delegation Framework** – Authority management for trusted parties
+
+## 🏗️ OASIS Architecture Deep Dive
+
+### **Confidential Smart Contract Layer**
+
+- **Creator Registry (Sapphire)** → Encrypted identity storage
+- **Reputation System (Sapphire)** → Private trust score management  
+- **Flagging Coordinator (Sapphire)** → Anonymous report processing
+- **Delegation Manager (Sapphire)** → Confidential authority assignment
+
+### **ROFL Integration Layer**
+
+- Telegram Bot ↔ ROFL Runtime ↔ Sapphire Contracts
+- Real-time Detection → Secure Processing → Private Storage
+
+### **Privacy Guarantees**
+* **Confidential Computing**: All data encrypted during processing
+* **Anonymous Interactions**: Zero user identity exposure
+* **Private Reputation**: Trust scores calculated confidentially
+* **Encrypted Communication**: Secure cross-platform coordination
+
+---
+
+## 📁 Repository Structure
+
+### Frontend (Web Application)
+**Repository**: [github.com/1uizeth/mymesh](https://github.com/1uizeth/mymesh)
+- Seamless Civic Auth + Wagmi integration
+- Creator search and verification interface
+- Multi-platform flagging system
+- Authority delegation management
+
+### Backend (Smart Contracts)
+**Repository**: [github.com/Principursa/demorepocontracts](https://github.com/Principursa/demorepocontracts)
+- Oasis Sapphire privacy contracts
+- Creator registry and reputation system
+- Anonymous flagging coordination
+- Authority delegation framework
+
+### Telegram Bot
+Integrated within the main repositories for real-time threat detection with privacy preservation.
+
+---
+
+## 🌐 Demo
+
+- [MyMesh](https://www.loom.com/share/7340df9866c9419f9a82c6fcc2d2d1f1?sid=ad4b955c-9013-4665-a95c-2d4e6017d74a)
+- [MyMesh Bot](https://github.com/Principursa/OasisTgBot)
+- **Features**: Creator search, threat reporting, authority delegation
+- **Login**: One-click Civic Auth (no wallet setup required)
+- [Prototype](https://v0-ethb-elgrade.vercel.app/dashboard)
+- 
+
+---
+
+## 🏆 What Makes This Special
+
+### ✅ Dual Client Architecture
+We built **two complementary clients** that leverage the same Oasis privacy infrastructure:
+- **Web app** for comprehensive creator management and cross-platform flagging
+- **Telegram bot** for real-time threat detection with privacy guarantees
+
+### ✅ Complete Web3 Abstraction
+Users experience familiar Web2 interactions while benefiting from Oasis Sapphire's privacy-preserving smart contracts running invisibly in the background.
+
+### ✅ Privacy-First Design
+Both reporting and reported parties remain anonymous through Oasis privacy technology, ensuring protection without exposing sensitive user data.
+
+### ✅ Scalable Delegation
+Creators can register and delegate reputation management to trusted authorities, enabling professional-grade protection for high-profile accounts.
+
+---
+
+> _Built at ETH Belgrade 2025 — Protecting crypto creator reputation through seamless Web3 technology._

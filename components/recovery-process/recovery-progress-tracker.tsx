@@ -1,13 +1,13 @@
 "use client"
 import type { Contact, UserProfile } from "@/lib/reclaim-types"
 import { Button } from "@/components/ui/button"
-import { Check, Zap } from "lucide-react"
+import { Check, Zap } from "lucide-react" // Zap for simulate
 
 interface RecoveryProgressTrackerProps {
   contacts: Contact[]
   currentStage: UserProfile["recoveryStage"] | "alerting_contacts"
-  onSimulateVotes: () => void
-  onCompleteRecovery: () => void
+  onSimulateVotes: () => void // For demo
+  onCompleteRecovery: () => void // For demo
 }
 
 export default function RecoveryProgressTracker({
@@ -22,13 +22,16 @@ export default function RecoveryProgressTracker({
 
   // Simulated confidence
   const recoveryConfidence =
-    totalActiveContacts > 0 ? Math.min(100, Math.round((approvedContacts / totalActiveContacts) * 100 + 20)) : 20
+    totalActiveContacts > 0 ? Math.min(100, Math.round((approvedContacts / totalActiveContacts) * 100 + 20)) : 20 // Base 20% confidence
 
   let nextMilestone = "Awaiting contact alert delivery..."
   if (currentStage === "awaiting_social_verification") {
     nextMilestone = "Awaiting contact verification responses."
   } else if (currentStage === "finalizing") {
     nextMilestone = "Finalizing account security and access."
+  } else if (currentStage === null && recoveryConfidence === 100) {
+    // This case might not be hit if currentStage becomes null only on 'recovered'
+    nextMilestone = "Recovery process complete."
   }
 
   return (
@@ -61,41 +64,32 @@ export default function RecoveryProgressTracker({
           </div>
           <p className="text-xs text-green-600 mt-1">{recoveryConfidence}%</p>
         </div>
-
-        {/* Simulation Controls */}
-        <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200 md:col-span-2 flex flex-col items-center justify-center gap-2">
-          {currentStage === "alerting_contacts" && (
+        {/* Demo buttons */}
+        {currentStage === "awaiting_social_verification" && (
+          <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200 md:col-span-2 flex flex-col items-center justify-center">
             <Button
               onClick={onSimulateVotes}
               size="sm"
               variant="outline"
               className="border-yellow-500 text-yellow-700 hover:bg-yellow-100"
             >
-              <Zap className="w-4 h-4 mr-2" /> Simulate Contact Votes
+              <Zap className="w-4 h-4 mr-2" /> Simulate Contact Votes (Dev)
             </Button>
-          )}
-          {currentStage === "awaiting_social_verification" && (
-            <Button
-              onClick={onSimulateVotes}
-              size="sm"
-              variant="outline"
-              className="border-yellow-500 text-yellow-700 hover:bg-yellow-100"
-            >
-              <Zap className="w-4 h-4 mr-2" /> Simulate Contact Votes
-            </Button>
-          )}
-          {currentStage === "finalizing" && (
+            <p className="text-xs text-yellow-600 mt-1">For demonstration purposes.</p>
+          </div>
+        )}
+        {currentStage === "finalizing" && (
+          <div className="p-4 bg-green-50 rounded-lg border border-green-200 md:col-span-2 flex flex-col items-center justify-center">
             <Button
               onClick={onCompleteRecovery}
               size="sm"
               variant="outline"
               className="border-green-500 text-green-700 hover:bg-green-100"
             >
-              <Check className="w-4 h-4 mr-2" /> Complete Recovery
+              <Check className="w-4 h-4 mr-2" /> Simulate Completion (Dev)
             </Button>
-          )}
-          <p className="text-xs text-yellow-600">For demonstration purposes only.</p>
-        </div>
+          </div>
+        )}
       </div>
     </section>
   )
