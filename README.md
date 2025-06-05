@@ -1,4 +1,4 @@
-###   🛡️ Anti-Hack Toolkit
+##   🛡️ Anti-Hack Toolkit
 
 Protect your digital identity. Preserve immutable proof of attack.
 
@@ -6,7 +6,7 @@ A decentralized, privacy-first protocol that empowers users whose accounts have 
 
 ⸻
 
-✊ Why Anti-Hack Toolkit?
+## ✊ Why Anti-Hack Toolkit?
 
 In today’s digital world, account takeovers, impersonation scams, and malicious messages can leave victims without recourse or evidence. Traditional approaches—screenshots, chat logs, centralized takedown requests—are:
 	•	Mutable or tampered: Screenshots can be edited, logs can be deleted.
@@ -17,15 +17,15 @@ Blockchain is essential: only on-chain records are tamper-proof, decentralized, 
 
 ⸻
 
-🔍 What It Does
+## 🔍 What It Does
 
-1️⃣ Malicious Message Detection (Telegram Client)
+## 1️⃣ Malicious Message Detection (Telegram Client)
 	•	Privacy-preserving phishing/reporting:
 Users forward suspicious Telegram messages into a confidential monitoring bot.
 ROFL verifies that the report comes from a trusted, anonymized origin, and Sapphire stores an encrypted record of the malicious content.
 	•	Fast alerts: The bot automatically scans for known phishing patterns or impersonation attempts and warns users in real time—without ever revealing who reported the message.
 
-2️⃣ Cross-Platform Impersonation Flags (Web App)
+## 2️⃣ Cross-Platform Impersonation Flags (Web App)
 	•	Creator-verification lookup:
 Anyone can search for a “favorite creator” (social handle, username, etc.) to see if a hijacked or impersonated account has been flagged on Telegram, Twitter, Instagram, or other platforms.
 	•	Flag suspicious content:
@@ -35,9 +35,9 @@ Verified creators (or organizations) can register a “recovery delegate” (tru
 
 ⸻
 
-🔑 Feature Examples
+## 🔑 Feature Examples
 
-1️⃣ Telegram-Based Malicious Message Reporting
+## 1️⃣ Telegram-Based Malicious Message Reporting
 
 “I received a private message claiming to be from @TrustedSupportBot asking for my seed phrase. I forwarded that chat to the Anti-Hack Telegram bot. Within seconds, the bot responded: ‘This message matches a known phishing pattern. Be careful!’ Best of all, no one ever knew which user reported it—my privacy was preserved.”
 
@@ -47,9 +47,9 @@ Verified creators (or organizations) can register a “recovery delegate” (tru
 
 ⸻
 
-⚙️ How It Works
+## ⚙️ How It Works
 
-🔧 Tech Overview
+## 🔧 Tech Overview
 	•	Oasis Sapphire – Confidential EVM that encrypts smart contract state and keeps on-chain records private.
 	•	Oasis ROFL – A secure TEE environment for off-chain logic (e.g., malicious message scanning, impersonation pattern matching).
 	•	Civic + Wagmi Frontend –
