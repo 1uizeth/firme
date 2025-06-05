@@ -3,7 +3,9 @@
 
 A seamless, privacy-first platform to protect crypto creators from impersonation and reputation attacks. Built with Civic Auth + Wagmi + Oasis Sapphire, MyMesh provides completely abstracted Web3 interactions to **detect malicious content**, **verify creator authenticity**, and **delegate reputation management** without exposing user privacy or requiring crypto knowledge.
 
----
+
+![Image](https://github.com/1uizeth/mymesh/blob/f57329882d5304b5bdc7e393bac55ba3766c4213/public/cover.png)
+
 
 ## 🎯 What We Built
 
