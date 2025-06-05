@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { TrendingUp, AlertCircle, CheckCircle, Clock, Shield } from "lucide-react"
 import CreatorSearch from "@/components/search/creator-search"
+import Hero from "@/components/hero"
 
 // Mock data for trending creators
 const trendingCreators = [
@@ -54,15 +55,9 @@ const getStatusBadge = (status: string) => {
 
 export default function LandingPage() {
   return (
-    <div className="min-h-dvh bg-neutral-50">
+    <div className="min-h-screen bg-neutral-50">
       <main className="container mx-auto px-4 py-12 space-y-16 sm:space-y-20">
-        <section className="text-center">
-          <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold tracking-tighter mb-3 sm:mb-4">
-            mymesh
-          </h1>
-          <p className="text-lg sm:text-xl md:text-2xl text-neutral-700 mb-6 sm:mb-8">
-            Decentralized creator verification
-          </p>
+        {/* <section className="text-center">
           <div className="flex flex-col sm:flex-row justify-center items-stretch gap-4 sm:gap-6 mb-3">
             <a href="/onboarding">
               <Button
@@ -84,60 +79,21 @@ export default function LandingPage() {
             </a>
           </div>
           <p className="text-xs sm:text-sm text-neutral-600">Different paths for different roles</p>
-        </section>
-
+        </section> */}
+        <Hero />
         {/* Search Section */}
         <section className="text-center space-y-8">
-          <div>
-            <h2 className="text-3xl sm:text-4xl font-bold mb-2">Check Creator Status</h2>
-            <p className="text-lg text-neutral-600">Search for any crypto creator to see their verification status</p>
-          </div>
-          
           <CreatorSearch />
-
-          <div className="space-y-6">
-            <div className="flex items-center justify-center gap-2 text-neutral-600">
-              <TrendingUp className="w-5 h-5" />
-              <h3 className="text-xl font-semibold">Trending Creators</h3>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {trendingCreators.map((creator) => (
-                <a key={creator.handle} href={`/creator/${creator.handle.replace("@", "")}`}>
-                  <Card className="border-neutral-200 hover:shadow-md transition-shadow duration-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-4">
-                        <div className="relative w-12 h-12">
-                          <img
-                            src={creator.avatarUrl}
-                            alt={creator.name}
-                            className="rounded-full"
-                            width={48}
-                            height={48}
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{creator.name}</p>
-                          <p className="text-sm text-gray-500 truncate">{creator.handle}</p>
-                          <div className="mt-1">{getStatusBadge(creator.status)}</div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </a>
-              ))}
-            </div>
-
-            <Button variant="outline" className="text-neutral-600">
-              Add Missing Creator
-            </Button>
-          </div>
+  
+            <p className="text-lg text-neutral-600">Search for any crypto creator to check if they got impersonated</p>
+  
+          
         </section>
 
-        <Separator className="bg-neutral-200" />
+
 
         {/* Core Feature Grid */}
-        <section className="text-center space-y-8">
+        {/* <section className="text-center space-y-8">
           <h2 className="text-3xl sm:text-4xl font-bold">Why Choose MyMesh?</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
@@ -168,7 +124,7 @@ export default function LandingPage() {
               </CardContent>
             </Card>
           </div>
-        </section>
+        </section> */}
       </main>
     </div>
   )
