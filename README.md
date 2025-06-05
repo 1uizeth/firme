@@ -108,6 +108,7 @@ Integrated within the main repositories for real-time threat detection with priv
 - [MyMesh](https://www.loom.com/share/7340df9866c9419f9a82c6fcc2d2d1f1?sid=ad4b955c-9013-4665-a95c-2d4e6017d74a)
 - **Features**: Creator search, threat reporting, authority delegation
 - **Login**: One-click Civic Auth (no wallet setup required)
+- [Prototype](https://v0-ethb-elgrade.vercel.app/dashboard)
 
 ---
 
