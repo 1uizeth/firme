@@ -1,7 +1,8 @@
-"use client"
-import { Button } from "@/components/ui/button"
-import { CheckCircle } from "lucide-react"
-import Link from "next/link" // Import Link
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { CheckCircle } from "lucide-react";
+import Link from "next/link";
 
 export default function CompletionScreen() {
   return (
@@ -16,9 +17,14 @@ export default function CompletionScreen() {
         </p>
       </main>
       <footer>
-        <Link href="/dashboard" passHref legacyBehavior>
+        {/*
+          • Remove both `legacyBehavior` and `passHref`. 
+          • Next.js’s <Link> now automatically forwards `href` to an <a> child.
+          • Keep `asChild` on your Button so that Button will render the <a> as its root.
+        */}
+        <Link href="/dashboard">
           <Button
-            asChild // Add asChild prop
+            asChild
             className="w-full bg-[#00A86B] hover:bg-[#008F5B] text-white py-3 text-lg rounded-md"
             aria-label="Enter Reclaim System"
           >
@@ -27,5 +33,5 @@ export default function CompletionScreen() {
         </Link>
       </footer>
     </div>
-  )
+  );
 }
