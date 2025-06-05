@@ -7,6 +7,7 @@ import ScrollToTop from "@/components/utils/scroll-to-top"
 import { ReclaimProvider } from "@/contexts/reclaim-context"
 
 import { Providers } from "@/components/providers"
+import Header from "@/components/header"
 
 const fontSans = Inter({
   subsets: ["latin"],
@@ -40,7 +41,8 @@ export default function RootLayout({
         <Providers>
             <ReclaimProvider>
               <ScrollToTop />
-                {children}
+              <Header />
+              {children}
             </ReclaimProvider>
         </Providers>
       </body>

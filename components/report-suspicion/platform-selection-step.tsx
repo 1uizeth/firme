@@ -52,13 +52,13 @@ export default function PlatformSelectionStep({
         {platformOptions.map((platform) => (
           <div
             key={platform}
-            className="flex items-center space-x-2 p-2 border border-neutral-200 rounded-md hover:bg-neutral-50"
+            className="flex items-center space-x-2 p-2 border border-neutral-200 rounded-md hover:bg-[#635BFF]/10"
           >
             <Checkbox
               id={`platform-${platform.toLowerCase().replace(/\s|\//g, "-")}`}
               checked={selectedPlatforms.includes(platform)}
               onCheckedChange={() => handlePlatformToggle(platform)}
-              className="border-neutral-400 data-[state=checked]:bg-[#00A86B] data-[state=checked]:border-[#00A86B]"
+              className="border-neutral-400 data-[state=checked]:bg-[#635BFF] data-[state=checked]:border-[#635BFF]"
             />
             <Label
               htmlFor={`platform-${platform.toLowerCase().replace(/\s|\//g, "-")}`}
@@ -72,7 +72,7 @@ export default function PlatformSelectionStep({
       {error && <p className="text-sm text-red-600 mb-4 text-center">{error}</p>}
       <Button
         onClick={handleSubmit}
-        className="w-full bg-[#00A86B] hover:bg-[#008F5B] text-white py-3 text-lg rounded-md"
+        className="w-full bg-[#635BFF] hover:bg-[#635BFF]/90 text-white py-3 text-lg rounded-md"
         disabled={selectedPlatforms.length === 0}
       >
         Next: Add Details
