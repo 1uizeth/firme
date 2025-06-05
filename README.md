@@ -114,10 +114,10 @@ Creators can register and delegate reputation management to trusted authorities,
 
 ## 🧠 Team
 
-[1uizeth](https://x.com/1uizeth)
-[VaristyShark](https://github.com/Principursa)
-[pdrosalba](https://github.com/PedroRosalba)
-[Arthur Jacobina](https://github.com/Arthur-Jacobina)
+- [1uizeth](https://x.com/1uizeth)
+- [VaristyShark](https://github.com/Principursa)
+- [pdrosalba](https://github.com/PedroRosalba)
+- [Arthur Jacobina](https://github.com/Arthur-Jacobina)
 
 ---
 
