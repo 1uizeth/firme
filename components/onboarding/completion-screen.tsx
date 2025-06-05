@@ -14,13 +14,15 @@ export default function CompletionScreen() {
         </p>
       </main>
       <footer>
-        <Link href="/dashboard" passHref legacyBehavior>
+
+        <Link href="/dashboard">
+
           <Button
             asChild // Add asChild prop
             className="w-full bg-[#00A86B] hover:bg-[#008F5B] text-white py-3 text-lg rounded-md"
             aria-label="Enter Reclaim System"
           >
-            <a>Enter System</a>
+            Enter System
           </Button>
         </Link>
       </footer>
