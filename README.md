@@ -107,10 +107,4 @@ Creators can register and delegate reputation management to trusted authorities,
 
 ---
 
-## 🧠 Team
-
-- [1uizeth](https://x.com/1uizeth)
-- [1uizeth](https://x.com/1uizeth)
----
-
 > _Built at ETH Belgrade 2025 — Protecting crypto creator reputation through seamless Web3 technology._
