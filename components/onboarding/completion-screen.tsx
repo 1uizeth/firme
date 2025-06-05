@@ -6,9 +6,7 @@ import Link from "next/link" // Import Link
 export default function CompletionScreen() {
   return (
     <div className="w-full max-w-md text-center p-6">
-      <header className="mb-10">
-        <h1 className="text-5xl font-bold text-black">Active</h1>
-      </header>
+
       <main className="mb-10">
         <CheckCircle className="w-20 h-20 text-[#00A86B] mx-auto mb-6" />
         <p className="text-xl text-neutral-800">
