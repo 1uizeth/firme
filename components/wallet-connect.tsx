@@ -2,13 +2,23 @@
 
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useEffect, useState } from 'react';
+import { useAccount } from 'wagmi';
 
-export function WalletConnect() {
+export function WalletConnect({ onNextStep }: { onNextStep: () => void }) {
   const [mounted, setMounted] = useState(false);
-  
+  const { isConnected } = useAccount();
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Effect to handle wallet connection
+  useEffect(() => {
+    if (isConnected) {
+      // Trigger the next step when wallet is connected
+      onNextStep();
+    }
+  }, [isConnected, onNextStep]);
   
   if (!mounted) {
     return (

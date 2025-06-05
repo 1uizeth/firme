@@ -41,26 +41,22 @@ export default function LandingPage() {
             Cryptographic identity recovery
           </p>
           <div className="flex flex-col sm:flex-row justify-center items-stretch gap-4 sm:gap-6 mb-3">
-            <Link href="/onboarding" passHref legacyBehavior>
-              <Button
-                asChild
-                size="lg"
-                className="bg-[#00A86B] hover:bg-[#008F5B] text-white px-8 sm:px-10 py-3 sm:py-4 text-base sm:text-lg rounded-md w-full sm:w-auto"
-                aria-label="Begin identity recovery setup"
-              >
-                <a>Begin Setup</a>
-              </Button>
-            </Link>
-            <Link href="/contact-verification" passHref legacyBehavior>
-              <Button
-                asChild
-                size="lg"
-                className="bg-[#00A86B] hover:bg-[#008F5B] text-white px-8 sm:px-10 py-3 sm:py-4 text-base sm:text-lg rounded-md w-full sm:w-auto"
-                aria-label="Verify as an emergency contact"
-              >
-                <a>I'm an Emergency Contact</a>
-              </Button>
-            </Link>
+            <Button
+              asChild
+              size="lg"
+              className="bg-[#00A86B] hover:bg-[#008F5B] text-white px-8 sm:px-10 py-3 sm:py-4 text-base sm:text-lg rounded-md w-full sm:w-auto"
+              aria-label="Begin identity recovery setup"
+            >
+              <Link href="/onboarding">Begin Setup</Link>
+            </Button>
+            <Button
+              asChild
+              size="lg"
+              className="bg-[#00A86B] hover:bg-[#008F5B] text-white px-8 sm:px-10 py-3 sm:py-4 text-base sm:text-lg rounded-md w-full sm:w-auto"
+              aria-label="Verify as an emergency contact"
+            >
+              <Link href="/contact-verification">I'm an Emergency Contact</Link>
+            </Button>
           </div>
           <p className="text-xs sm:text-sm text-neutral-600">Different paths for different roles</p>
         </section>

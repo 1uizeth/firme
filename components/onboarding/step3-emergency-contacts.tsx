@@ -9,11 +9,12 @@ import type { Contact as ReclaimContactType, ContactRelationship } from "@/lib/r
 
 interface Step3EmergencyContactsProps {
   onComplete: () => void
+  onBack?: () => void
   currentStep: number
   totalSteps: number
 }
 
-export default function Step3EmergencyContacts({ onComplete, currentStep, totalSteps }: Step3EmergencyContactsProps) {
+export default function Step3EmergencyContacts({ onComplete, onBack, currentStep, totalSteps }: Step3EmergencyContactsProps) {
   const {
     contacts: contextContacts,
     addContactAndSendInvitation, // Updated function name
@@ -54,7 +55,13 @@ export default function Step3EmergencyContacts({ onComplete, currentStep, totalS
   }
 
   return (
-    <OnboardingLayout stepNumber={currentStep} totalSteps={totalSteps} headerText="Contacts">
+    <OnboardingLayout 
+      stepNumber={currentStep} 
+      totalSteps={totalSteps} 
+      headerText="Add Emergency Contacts"
+      onBack={onBack}
+      showBackButton={true}
+    >
       <p className="text-neutral-700 mb-6 text-lg">Add trusted contacts for recovery</p>
 
       <div className="space-y-4 mb-6 text-left">

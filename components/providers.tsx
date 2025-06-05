@@ -4,7 +4,7 @@ import { CivicAuthProvider } from "@civic/auth-web3/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { WagmiProvider } from "wagmi";
-import { mainnet, sepolia } from "wagmi/chains";
+import { Chain, mainnet, sepolia } from "wagmi/chains";
 import "@rainbow-me/rainbowkit/styles.css";
 
 const config = getDefaultConfig({

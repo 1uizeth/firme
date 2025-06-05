@@ -5,7 +5,6 @@ import { getUser } from "@civic/auth/nextjs";
 import { cn } from "@/lib/utils";
 
 export type MyUserButtonProps = {
-    onNextStep: () => void;
     isClicked?: boolean;
     onToggleClick?: (isClicked: boolean) => void;
     className?: string;
@@ -16,7 +15,7 @@ async function asyncGetUser() {
     return user;
 }
 
-export default function MyUserButton({ onNextStep, isClicked = false, onToggleClick, className }: MyUserButtonProps) {
+export default function MyUserButton({ isClicked = false, onToggleClick, className }: MyUserButtonProps) {
     const { user } = useUser();
 
     const asyncUser = asyncGetUser();
@@ -27,10 +26,6 @@ export default function MyUserButton({ onNextStep, isClicked = false, onToggleCl
             onToggleClick(!isClicked);
         }
         
-        // If user is authenticated, allow moving to next step
-        if (user) {
-            onNextStep();
-        }
     };
 
     return (
