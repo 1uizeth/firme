@@ -48,7 +48,7 @@ export default function ManageContactsPage() {
     resendInvitation,
     simulateAcceptInvitation, // For demo purposes
     isLoading,
-    contextError,
+    error,
     checkAndExpireInvitations,
   } = useReclaim()
 
@@ -175,11 +175,11 @@ export default function ManageContactsPage() {
     return <div className="container mx-auto max-w-3xl px-4 py-10 md:py-16 text-center">Loading contacts...</div>
   }
 
-  if (contextError) {
+  if (error) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-10 md:py-16 text-center text-red-500">
         <AlertTriangle className="mx-auto h-12 w-12 mb-4" />
-        <p>Error loading contacts: {contextError}</p>
+        <p>Error loading contacts: {error}</p>
         <Link href="/dashboard" passHref legacyBehavior>
           <Button variant="outline" className="mt-4">
             Go to Dashboard
@@ -345,9 +345,9 @@ export default function ManageContactsPage() {
                       size="sm"
                       onClick={() => handleResendInvitation(contact.contactId)}
                       className="text-xs border-blue-500 text-blue-600 hover:bg-blue-50"
-                      disabled={Boolean(
+                      disabled={
                         isLoading || (contact.invitationExpiresAt && new Date(contact.invitationExpiresAt) < new Date())
-                      )}
+                      }
                       title={
                         contact.invitationExpiresAt && new Date(contact.invitationExpiresAt) < new Date()
                           ? "Invitation Expired"
@@ -365,7 +365,7 @@ export default function ManageContactsPage() {
                         size="sm"
                         onClick={() => simulateAcceptInvitation(contact.contactId)}
                         className="text-xs border-green-500 text-green-600 hover:bg-green-50"
-                        disabled={Boolean(isLoading || isExpired)}
+                        disabled={isLoading || isExpired}
                         title={isExpired ? "Invitation Expired" : "Simulate Contact Accepting Invitation"}
                       >
                         Simulate Accept

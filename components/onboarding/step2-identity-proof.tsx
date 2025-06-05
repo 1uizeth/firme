@@ -5,7 +5,6 @@ import { Video } from "lucide-react" // Placeholder icon
 
 interface Step2IdentityProofProps {
   onNextStep: () => void
-  onBack?: () => void
   currentStep: number
   totalSteps: number
 }
@@ -13,15 +12,9 @@ interface Step2IdentityProofProps {
 // In a real app, this would be securely generated
 const generatedPassphrase = "synergy-quantum-beacon-horizon-echo"
 
-export default function Step2IdentityProof({ onNextStep, onBack, currentStep, totalSteps }: Step2IdentityProofProps) {
+export default function Step2IdentityProof({ onNextStep, currentStep, totalSteps }: Step2IdentityProofProps) {
   return (
-    <OnboardingLayout 
-      stepNumber={currentStep} 
-      totalSteps={totalSteps} 
-      headerText="Verify"
-      onBack={onBack}
-      showBackButton={true}
-    >
+    <OnboardingLayout stepNumber={currentStep} totalSteps={totalSteps} headerText="Verify">
       <p className="text-neutral-700 mb-6 text-lg">Record your identity proof</p>
 
       {/* Placeholder for video recording interface */}
