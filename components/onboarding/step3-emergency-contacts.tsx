@@ -124,7 +124,20 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
   } = useReclaim()
 
   const handleAddToNumbersList = async () => {
+    console.log("Starting handleAddToNumbersList");
+    console.log("Wallet status:", { 
+      address,
+      authInfo,
+      isInteractingWithChain,
+      contractConfig: WAGMI_CONTRACT_CONFIG 
+    });
+    
     setEntryError(undefined)
+
+    if (!address) {
+      setEntryError('Please connect your wallet first')
+      return
+    }
 
     if (!nameValue) {
       setEntryError('Name is required!')
@@ -137,11 +150,19 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
     }
 
     if (!authInfo) {
+      console.log("No authInfo available:", authInfo);
       setEntryError('Authentication required!')
       return
     }
 
     try {
+      console.log("Attempting contract write with:", {
+        nameValue,
+        numberValue,
+        authInfo,
+        config: WAGMI_CONTRACT_CONFIG
+      });
+      
       await writeContract({
         ...WAGMI_CONTRACT_CONFIG,
         functionName: 'addToNumbersList',
@@ -155,6 +176,7 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
   }
 
   const handleAddContact = async () => {
+    console.log("Starting handleAddContact");
     if (nameValue.trim() && numberValue.trim()) {
       let determinedType: ReclaimContactType["type"] = "other"
       if (numberValue.includes("@")) {
@@ -163,9 +185,12 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
         determinedType = "phone"
       }
 
+      console.log("Determined type:", determinedType);
+
       try {
         // If it's a phone number, add to the contract
         if (determinedType === "phone") {
+          console.log("Phone number detected, calling handleAddToNumbersList");
           await handleAddToNumbersList()
         }
 
@@ -185,6 +210,8 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
         console.error('Error adding contact:', error)
         setEntryError((error as Error).message)
       }
+    } else {
+      console.log("Form validation failed:", { nameValue, numberValue });
     }
   }
 

@@ -12,6 +12,7 @@
     "@civic/auth": "^0.6.0",
     "@civic/auth-web3": "^0.5.12",
     "@hookform/resolvers": "^3.9.1",
+    "@oasisprotocol/sapphire-wagmi-v2": "^2.1.0",
     "@prisma/client": "6.9.0",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "1.1.4",
@@ -71,9 +72,9 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "prisma": "6.9.0",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
+    "prisma": "6.9.0",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }

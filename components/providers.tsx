@@ -2,20 +2,29 @@
 
 import { CivicAuthProvider } from "@civic/auth-web3/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { RainbowKitProvider, getDefaultConfig, Theme, lightTheme } from "@rainbow-me/rainbowkit";
-import { WagmiProvider } from "wagmi";
-import { Chain, mainnet, sepolia } from "wagmi/chains";
-import "@rainbow-me/rainbowkit/styles.css";
+import { connectorsForWallets, lightTheme, RainbowKitProvider, Theme } from '@rainbow-me/rainbowkit'
+import { injectedWallet } from '@rainbow-me/rainbowkit/wallets'
+import { Chain, sapphire, sapphireTestnet, mainnet, sepolia } from 'viem/chains'
+import { createConfig, createConnector, Transport, WagmiProvider } from 'wagmi'
 import { Web3AuthContextProvider } from "../providers/Web3AuthProvider";
 import { AppStateContextProvider } from "../providers/AppStateProvider";
 import { AccountAvatar } from "./account-avatar";
+import "@rainbow-me/rainbowkit/styles.css";
+import {
+  injectedWithSapphire,
+  sapphireHttpTransport,
+  sapphireLocalnet,
+} from '@oasisprotocol/sapphire-wagmi-v2'
 
-const config = getDefaultConfig({
-  appName: "Firme",
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "YOUR_PROJECT_ID",
-  chains: [mainnet, sepolia],
-  ssr: true,
-});
+// interface ImportMetaEnv {
+//   NEXT_PUBLIC_NETWORK: string
+//   NEXT_PUBLIC_WEB3_GATEWAY: string
+//   NEXT_PUBLIC_MESSAGE_BOX_ADDR: string
+// }
+
+// interface ImportMeta {
+//   readonly env: ImportMetaEnv
+// }
 
 const queryClient = new QueryClient();
 
@@ -40,12 +49,49 @@ const rainbowKitTheme: Theme = {
 // 4. Copy the Project ID and paste it below
 
 // Create Wagmi config with RainbowKit connectors
-const wagmiConfig = getDefaultConfig({
-  appName: "Firme",
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "YOUR_PROJECT_ID",
-  chains: supportedChains,
-  ssr: true,
-});
+
+const NEXT_NETWORK_NUMBER = Number(process.env.NEXT_PUBLIC_NETWORK_NUMBER);
+
+export const wagmiConfig = createConfig({
+  multiInjectedProviderDiscovery: false,
+  connectors: [
+    ...connectorsForWallets(
+      [
+        {
+          groupName: 'Recommended',
+          wallets: [
+            (wallet => () => ({
+              ...wallet,
+              id: 'injected-sapphire',
+              name: 'Injected (Sapphire)',
+              createConnector: walletDetails =>
+                createConnector(config => ({
+                  ...injectedWithSapphire()(config),
+                  ...walletDetails,
+                })),
+            }))(injectedWallet()),
+          ],
+        },
+      ],
+      { appName: 'Demo starter', projectId: 'PROJECT_ID' }
+    ),
+  ],
+  chains: [
+    ...(NEXT_NETWORK_NUMBER === 0x5afe ? [sapphire] : []),
+    ...(NEXT_NETWORK_NUMBER === 0x5aff ? [sapphireTestnet] : []),
+    ...(NEXT_NETWORK_NUMBER === 0x5afd ? [sapphireLocalnet] : []),
+  ] as unknown as [Chain],
+  transports: {
+    ...((NEXT_NETWORK_NUMBER === 0x5afe ? { [sapphire.id]: sapphireHttpTransport() } : {}) as Transport),
+    ...((NEXT_NETWORK_NUMBER === 0x5aff
+      ? { [sapphireTestnet.id]: sapphireHttpTransport() }
+      : {}) as Transport),
+    ...(NEXT_NETWORK_NUMBER === 0x5afd ? { [sapphireLocalnet.id]: sapphireHttpTransport() } : {}),
+  },
+  batch: {
+    multicall: false,
+  },
+})
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
