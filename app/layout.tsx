@@ -1,10 +1,12 @@
-import type React from "react"
+import React, { type PropsWithChildren } from "react"
 import type { Metadata } from "next"
 import { Inter, Roboto_Mono } from "next/font/google"
 import "./globals.css"
 import { cn } from "@/lib/utils"
 import ScrollToTop from "@/components/utils/scroll-to-top"
-import { ReclaimProvider } from "@/contexts/reclaim-context" // Import ReclaimProvider
+import { ReclaimProvider } from "@/contexts/reclaim-context"
+
+import { Providers } from "@/components/providers"
 
 const fontSans = Inter({
   subsets: ["latin"],
@@ -21,7 +23,7 @@ const fontMono = Roboto_Mono({
 export const metadata: Metadata = {
   title: "Reclaim",
   description: "Cryptographic identity recovery and breach alerts.",
-    generator: 'v0.dev'
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -30,16 +32,17 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <body
         className={cn("min-h-screen bg-white font-sans antialiased text-black", fontSans.variable, fontMono.variable)}
+        suppressHydrationWarning
       >
-        <ReclaimProvider>
-          {" "}
-          {/* Wrap children with ReclaimProvider */}
-          <ScrollToTop />
-          {children}
-        </ReclaimProvider>
+        <Providers>
+            <ReclaimProvider>
+              <ScrollToTop />
+              {children}
+            </ReclaimProvider>
+        </Providers>
       </body>
     </html>
   )

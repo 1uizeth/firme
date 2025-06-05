@@ -3,7 +3,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { TrendingUp, AlertCircle, CheckCircle, Clock, Shield } from "lucide-react"
-import Link from "next/link"
 import CreatorSearch from "@/components/search/creator-search"
 
 // Mock data for trending creators
@@ -65,26 +64,24 @@ export default function LandingPage() {
             Decentralized creator verification
           </p>
           <div className="flex flex-col sm:flex-row justify-center items-stretch gap-4 sm:gap-6 mb-3">
-            <Link href="/onboarding" passHref legacyBehavior>
+            <a href="/onboarding">
               <Button
-                asChild
                 size="lg"
                 className="bg-[#00A86B] hover:bg-[#008F5B] text-white px-8 sm:px-10 py-3 sm:py-4 text-base sm:text-lg rounded-md w-full sm:w-auto"
                 aria-label="Begin creator verification setup"
               >
-                <a>Verify Your Identity</a>
+                Verify Your Identity
               </Button>
-            </Link>
-            <Link href="/contact-verification" passHref legacyBehavior>
+            </a>
+            <a href="/contact-verification">
               <Button
-                asChild
                 size="lg"
                 className="bg-[#00A86B] hover:bg-[#008F5B] text-white px-8 sm:px-10 py-3 sm:py-4 text-base sm:text-lg rounded-md w-full sm:w-auto"
                 aria-label="Verify as a trusted contact"
               >
-                <a>I'm a Trusted Contact</a>
+                I'm a Trusted Contact
               </Button>
-            </Link>
+            </a>
           </div>
           <p className="text-xs sm:text-sm text-neutral-600">Different paths for different roles</p>
         </section>
@@ -106,7 +103,7 @@ export default function LandingPage() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {trendingCreators.map((creator) => (
-                <Link key={creator.handle} href={`/creator/${creator.handle.replace("@", "")}`}>
+                <a key={creator.handle} href={`/creator/${creator.handle.replace("@", "")}`}>
                   <Card className="border-neutral-200 hover:shadow-md transition-shadow duration-200">
                     <CardContent className="p-4">
                       <div className="flex items-center space-x-4">
@@ -127,7 +124,7 @@ export default function LandingPage() {
                       </div>
                     </CardContent>
                   </Card>
-                </Link>
+                </a>
               ))}
             </div>
 
