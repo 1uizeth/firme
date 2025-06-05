@@ -41,7 +41,7 @@ export default function SecurityReviewPage() {
   const {
     userProfile,
     isLoading: contextIsLoading,
-    error: contextError,
+    contextError,
     initiateSecurityReview,
     confirmCompromiseAfterReview,
     dismissAsFalseAlarm,
@@ -68,20 +68,32 @@ export default function SecurityReviewPage() {
     }
 
     // If user is under review and we haven't initiated the log yet for this page view
-    // The currentStep === 1 check ensures it only runs when the overview is first presented.
-    if (currentStep === 1) {
-      // Assuming currentStep is managed by useState and starts at 1
-      // Check if initiateSecurityReview was already called for this specific review instance
-      // This might require a more sophisticated check if the user can navigate back and forth
-      // For now, calling it if currentStep is 1 is a reasonable approach.
-      // If initiateSecurityReview is idempotent or logs uniquely, this is fine.
+    if (currentStep === 1 && !hasInitiatedReview) {
       initiateSecurityReview()
+      setHasInitiatedReview(true)
     }
-  }, [userProfile, contextIsLoading, router, initiateSecurityReview, currentStep])
+  }, [userProfile, contextIsLoading, router, initiateSecurityReview, currentStep, hasInitiatedReview])
 
-  const handleConfirmCompromisePath = () => {
+  const handleConfirmCompromise = async () => {
+    setIsSubmitting(true)
     setFlowError(null)
-    setCurrentStep(2) // Move to Identity Verification
+    try {
+      if (!userProfile || !userProfile.reviewRequestDetails) {
+        throw new Error("User profile or review details not found")
+      }
+      // Confirm the compromise with proper breach details
+      await confirmCompromiseAfterReview(
+        userProfile.reviewRequestDetails.isPhoneIssue,
+        userProfile.reviewRequestDetails.phoneIssueType,
+      )
+      // After confirming compromise, redirect to breach alert page
+      router.push("/breach-alert")
+    } catch (err) {
+      setFlowError("Failed to confirm compromise. Please try again.")
+      console.error("Error confirming compromise:", err)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleFalseAlarmPath = async (messageToContact?: string) => {
@@ -167,7 +179,7 @@ export default function SecurityReviewPage() {
           <OverviewStep
             reviewDetails={reviewRequestDetails}
             userName={userName}
-            onConfirmCompromise={handleConfirmCompromisePath}
+            onConfirmCompromise={handleConfirmCompromise}
             onFalseAlarm={handleFalseAlarmPath} // Pass the direct function
             isSubmitting={isSubmitting}
           />

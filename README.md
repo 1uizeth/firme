@@ -1,30 +1,40 @@
-# ETHBelgrade
+# MyMesh - Decentralized Identity Recovery
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
-
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/0x-3179s-projects/v0-ethb-elgrade)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/nFAZOJJciLI)
+A decentralized identity recovery system that uses social verification and trusted contacts to help users regain access to their accounts after a security breach.
 
 ## Overview
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+MyMesh provides a secure and user-friendly way to recover compromised accounts through:
+- Social verification from trusted contacts
+- Multi-stage recovery process
+- Real-time progress tracking
+- Secure communication channels
 
-## Deployment
+## Getting Started
 
-Your project is live at:
+```bash
+# Install dependencies
+npm install
 
-**[https://vercel.com/0x-3179s-projects/v0-ethb-elgrade](https://vercel.com/0x-3179s-projects/v0-ethb-elgrade)**
+# Run the development server
+npm run dev
+```
 
-## Build your app
+Open [http://localhost:3000](http://localhost:3000) to see the application.
 
-Continue building your app on:
+## Features
 
-**[https://v0.dev/chat/projects/nFAZOJJciLI](https://v0.dev/chat/projects/nFAZOJJciLI)**
+- Account compromise detection and verification
+- Trusted contact management
+- Multi-stage recovery process
+- Real-time recovery progress tracking
+- Secure communication channels
+- Demo mode for testing
 
-## How It Works
+## Tech Stack
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+- Next.js 15
+- React 19
+- TypeScript
+- Tailwind CSS
+- Radix UI Components

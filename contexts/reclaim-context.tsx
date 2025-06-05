@@ -8,14 +8,16 @@ import {
   EventType,
   type ReviewRequestDetails,
   type BreachReport,
+  type Notification,
 } from "@/lib/reclaim-types"
 // This import should now work correctly
-import { DEMO_USER_PROFILE, DEMO_CONTACTS, DEMO_ACTIVITY_LOG } from "@/lib/demo-data"
+import { DEMO_USER_PROFILE, DEMO_CONTACTS, DEMO_ACTIVITY_LOG, DEMO_NOTIFICATIONS } from "@/lib/demo-data"
 
 interface ReclaimContextType {
   userProfile: UserProfile | null
   contacts: Contact[]
   activityLog: ActivityLogEntry[]
+  notifications: Notification[]
   isLoading: boolean
   contextError: string | null
   setContextError: (error: string | null) => void
@@ -25,7 +27,7 @@ interface ReclaimContextType {
   ) => Promise<void> // Simplified for addContactAndSendInvitation
   updateContact: (contactId: string, updates: Partial<Omit<Contact, "contactId" | "userId">>) => Promise<void>
   removeContact: (contactId: string) => Promise<void>
-  addActivityLogEntry: (entry: Omit<ActivityLogEntry, "activityId" | "userId" | "timestamp" | "systemSource">) => void
+  addActivityLogEntry: (eventType: EventType, details: Record<string, any>, systemSource?: string) => Promise<void>
   setContacts: (contacts: Contact[]) => void // Keep for direct manipulation if needed
   currentBreachReport: BreachReport | null
   setCurrentBreachReport: (report: BreachReport | null) => void
@@ -57,6 +59,7 @@ interface ReclaimContextType {
     description: string,
     reportingContactName: string,
   ) => Promise<void>
+  clearLocalStorage: () => void
 }
 
 const initialUserProfile: UserProfile = {
@@ -69,6 +72,7 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([])
+  const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [contextError, setContextError] = useState<string | null>(null)
   const [currentBreachReport, setCurrentBreachReport] = useState<BreachReport | null>(null)
@@ -95,6 +99,7 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
         const storedUserProfile = localStorage.getItem("userProfile")
         const storedContacts = localStorage.getItem("contacts")
         const storedActivityLog = localStorage.getItem("activityLog")
+        const storedNotifications = localStorage.getItem("notifications")
 
         if (storedUserProfile) {
           setUserProfile(JSON.parse(storedUserProfile))
@@ -113,12 +118,19 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
         } else {
           setActivityLog(DEMO_ACTIVITY_LOG)
         }
+
+        if (storedNotifications) {
+          setNotifications(JSON.parse(storedNotifications))
+        } else {
+          setNotifications(DEMO_NOTIFICATIONS)
+        }
       } catch (error) {
         console.error("Error loading data from localStorage:", error)
         setContextError("Failed to load session data. Please try clearing your browser cache or resetting the session.")
         setUserProfile(initialUserProfile)
         setContacts(DEMO_CONTACTS)
         setActivityLog(DEMO_ACTIVITY_LOG)
+        setNotifications(DEMO_NOTIFICATIONS)
       } finally {
         setIsLoading(false)
       }
@@ -131,7 +143,8 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
     if (userProfile) localStorage.setItem("userProfile", JSON.stringify(userProfile))
     localStorage.setItem("contacts", JSON.stringify(contacts))
     localStorage.setItem("activityLog", JSON.stringify(activityLog))
-  }, [userProfile, contacts, activityLog, isLoading])
+    localStorage.setItem("notifications", JSON.stringify(notifications))
+  }, [userProfile, contacts, activityLog, notifications, isLoading])
 
   useEffect(() => {
     saveData()
@@ -544,32 +557,45 @@ export const ReclaimProvider = ({ children }: { children: ReactNode }) => {
     setContextError(null)
   }
 
+  const clearLocalStorage = useCallback(() => {
+    localStorage.removeItem("userProfile")
+    localStorage.removeItem("contacts")
+    localStorage.removeItem("activityLog")
+    localStorage.removeItem("notifications")
+    setUserProfile(initialUserProfile)
+    setContacts(DEMO_CONTACTS)
+    setActivityLog(DEMO_ACTIVITY_LOG)
+    setNotifications(DEMO_NOTIFICATIONS)
+    setContextError(null)
+  }, [])
+
   return (
     <ReclaimContext.Provider
       value={{
         userProfile,
         contacts,
         activityLog,
+        notifications,
         isLoading,
         contextError,
         setContextError,
         updateUserProfile,
-        addContact: addContactAndSendInvitation, // Map simplified addContact to the more specific one
+        addContact: addContactAndSendInvitation,
         updateContact: updateContactState,
         removeContact: removeContactState,
-        addActivityLogEntry: logActivity, // Use the new logActivity for this
-        setContacts, // Keep for direct manipulation if needed
+        addActivityLogEntry: logActivity,
+        setContacts,
         currentBreachReport,
         setCurrentBreachReport,
         reportSuspicion,
         confirmCompromiseAfterReview,
-        resolveAsFalseAlarm, // Old one, should be replaced by dismissAsFalseAlarm where appropriate
+        resolveAsFalseAlarm,
         initiateRecovery,
         sendAlertsToContacts,
         simulateBreachByContactFlag,
         resetSessionData,
         setPhoneNumber,
-        // New functions
+        clearLocalStorage,
         addContactAndSendInvitation,
         resendInvitation,
         simulateAcceptInvitation,
