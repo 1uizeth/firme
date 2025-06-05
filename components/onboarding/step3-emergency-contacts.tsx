@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card'
 import { X, Plus } from "lucide-react"
 import { useReclaim } from "@/contexts/reclaim-context"
 import type { Contact as ReclaimContactType, ContactRelationship } from "@/lib/reclaim-types"
-import { FC, useEffect, useState } from 'react'
+import { FC, useEffect, useState, useRef } from 'react'
 import { StringUtils } from '@/app/utils/string.utils'
 import { RevealInput } from '@/components/reveal-input'
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
@@ -29,19 +29,41 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
     fetchAuthInfo,
   } = useWeb3Auth()
 
+  // Store authInfo in local state to persist it between renders
+  const [localAuthInfo, setLocalAuthInfo] = useState<string | null>(null)
+  // Flag to prevent duplicate fetches
+  const isFetchingAuthRef = useRef(false)
+
+  // Update localAuthInfo whenever authInfo changes from context
+  useEffect(() => {
+    if (authInfo) {
+      setLocalAuthInfo(authInfo)
+      console.log("AuthInfo updated from context:", authInfo.substring(0, 20) + "...")
+    }
+  }, [authInfo])
+
+  // Use the stored authInfo or the context authInfo
+  const effectiveAuthInfo = localAuthInfo || authInfo
+
   const { data: numbersListData, refetch: refetchNumbersList } = useReadContract({
     ...WAGMI_CONTRACT_CONFIG,
     functionName: 'getNumbersList',
-    args: [authInfo],
+    args: [effectiveAuthInfo],
     query: {
-      enabled: !!authInfo,
+      enabled: !!effectiveAuthInfo,
     },
   }) satisfies WagmiUseReadContractReturnType<'getNumbersList', [string[], string[]], [string]>
 
+  // DEBUG logging - remove in production
   useEffect(() => { 
-    console.log("numbersListData", numbersListData)
-    console.log("authInfo", authInfo)
-  }, [numbersListData, authInfo])
+    if (numbersListData) {
+      console.log("numbersListData updated:", 
+        numbersListData[0]?.length > 0 ? `${numbersListData[0].length} entries` : "empty")
+    }
+    if (effectiveAuthInfo) {
+      console.log("Using effectiveAuthInfo:", effectiveAuthInfo.substring(0, 20) + "...")
+    }
+  }, [numbersListData, effectiveAuthInfo])
 
   const {
     data: addToNumbersListTxHash,
@@ -64,36 +86,80 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
   const [numbersList, setNumbersList] = useState<{ names: string[], numbers: string[] } | null>(null)
   const [nameValue, setNameValue] = useState<string>('')
   const [numberValue, setNumberValue] = useState<string>('')
-  const [numbersListRevealLabel, setNumbersListRevealLabel] = useState<string>()
+  const [numbersListRevealLabel, setNumbersListRevealLabel] = useState<string>('Tap to reveal')
   const [numbersListError, setNumbersListError] = useState<string | null>(null)
   const [entryError, setEntryError] = useState<string>()
   const [hasBeenRevealedBefore, setHasBeenRevealedBefore] = useState(false)
 
+  // Safely fetch auth info only once on mount
   useEffect(() => {
-    if (authInfo && numbersListData) {
+    const fetchAuth = async () => {
+      // Only fetch if we don't have auth info, have an address, and aren't already fetching
+      if (!effectiveAuthInfo && address && !isFetchingAuthRef.current) {
+        try {
+          isFetchingAuthRef.current = true
+          console.log("Attempting to fetch authInfo on mount...")
+          
+          // Try to fetch from URL first
+          const urlParams = new URLSearchParams(window.location.search);
+          const authParam = urlParams.get('auth');
+          
+          if (authParam && authParam.length > 100) {
+            console.log("Using auth parameter from URL")
+            setLocalAuthInfo(authParam)
+          } else {
+            // If no URL param, try to fetch from the hook
+            await fetchAuthInfo()
+            console.log("AuthInfo fetch attempt complete")
+          }
+        } catch (error) {
+          console.error("Failed to fetch authInfo on mount:", error)
+        } finally {
+          isFetchingAuthRef.current = false
+        }
+      }
+    }
+    
+    fetchAuth()
+    // Only run this effect once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (effectiveAuthInfo && numbersListData) {
       setNumbersList({
         names: numbersListData[0],
         numbers: numbersListData[1],
       })
     }
-  }, [numbersListData])
+  }, [numbersListData, effectiveAuthInfo])
 
   const fetchNumbersList = async () => {
+    if (isFetchingAuthRef.current) return Promise.reject("Already fetching auth info")
+    
     setNumbersListError(null)
     setNumbersListRevealLabel('Please sign message and wait...')
 
     try {
-      await fetchAuthInfo()
+      isFetchingAuthRef.current = true
+      
+      // Only fetch auth info if we don't have it
+      if (!effectiveAuthInfo) {
+        await fetchAuthInfo()
+        console.log("fetchNumbersList: fetchAuthInfo complete")
+      }
+      
       await refetchNumbersList()
-      setNumbersListRevealLabel(undefined)
+      setNumbersListRevealLabel('')  // Use empty string instead of undefined
       setHasBeenRevealedBefore(true)
 
       return Promise.resolve()
     } catch (ex) {
       setNumbersListError((ex as Error).message)
       setNumbersListRevealLabel('Something went wrong! Please try again...')
-
       throw ex
+    } finally {
+      isFetchingAuthRef.current = false
     }
   }
 
@@ -114,7 +180,7 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
   }, [isTransactionReceiptSuccess, isTransactionReceiptError, isWriteContractError])
 
   const handleRevealChanged = async (): Promise<void> => {
-    if (!isInteractingWithChain) {
+    if (!isInteractingWithChain && !isFetchingAuthRef.current) {
       return await fetchNumbersList()
     }
 
@@ -129,12 +195,16 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
   } = useReclaim()
 
   const handleAddToNumbersList = async () => {
+    if (isFetchingAuthRef.current) {
+      setEntryError('Still processing previous request')
+      return
+    }
+    
     console.log("Starting handleAddToNumbersList");
     console.log("Wallet status:", { 
       address,
-      authInfo,
-      isInteractingWithChain,
-      contractConfig: WAGMI_CONTRACT_CONFIG 
+      hasAuth: !!effectiveAuthInfo,
+      isInteractingWithChain
     });
     
     setEntryError(undefined)
@@ -155,36 +225,51 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
     }
 
     try {
-      if (!authInfo) {
+      // If we don't have authInfo yet, fetch it
+      let currentAuthInfo = effectiveAuthInfo
+      if (!currentAuthInfo) {
         console.log("No authInfo available, fetching...");
-        await fetchAuthInfo()
+        
+        isFetchingAuthRef.current = true
+        try {
+          // Call fetchAuthInfo and wait for it to complete
+          await fetchAuthInfo()
+          // Check if we got authInfo from the context after fetching
+          if (authInfo) {
+            setLocalAuthInfo(authInfo)
+            currentAuthInfo = authInfo
+          }
+        } finally {
+          isFetchingAuthRef.current = false
+        }
+        
+        if (!currentAuthInfo) {
+          setEntryError('Authentication failed - please try again')
+          return
+        }
+        
+        console.log("AuthInfo fetched successfully")
       }
 
-      if (!authInfo) {
-        setEntryError('Authentication failed - please try again')
-        return
-      }
-
-      console.log("Attempting contract write with:", {
-        nameValue,
-        numberValue,
-        authInfo,
-        config: WAGMI_CONTRACT_CONFIG
-      });
+      console.log("Attempting contract write...");
       
       await writeContract({
         ...WAGMI_CONTRACT_CONFIG,
         functionName: 'addToNumbersList',
-        args: [nameValue, numberValue, authInfo],
+        args: [nameValue, numberValue, currentAuthInfo],
       })
     } catch (error) {
-      console.error('Contract write error:', writeContractError || error)
-      setEntryError(writeContractError?.message || (error as Error).message)
-      throw error; // Re-throw to be caught by the parent try-catch
+      console.error('Contract write error:', error)
+      setEntryError((error as Error).message)
     }
   }
 
   const handleAddContact = async () => {
+    if (isFetchingAuthRef.current) {
+      setEntryError('Still processing previous request')
+      return
+    }
+    
     console.log("Starting handleAddContact");
     if (nameValue.trim() && numberValue.trim()) {
       let determinedType: ReclaimContactType["type"] = "other"
@@ -228,6 +313,48 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
     await removeContextContact(id)
   }
 
+  // Manual way to set authInfo if we receive it directly from the user
+  useEffect(() => {
+    // Parse authInfo from the URL or query if it's available
+    const parseUserProvidedAuth = () => {
+      if (!effectiveAuthInfo && address) {
+        // Check if auth was sent directly in the query
+        try {
+          const queryText = window.location.search || '';
+          if (queryText.includes('authinfo') || queryText.includes('0x')) {
+            // Extract potential auth string
+            let potentialAuth = '';
+            
+            // Try to find a hex-like string (starts with 0x)
+            const hexMatch = queryText.match(/0x[a-fA-F0-9]{10,}/);
+            if (hexMatch) {
+              potentialAuth = hexMatch[0];
+            } 
+            // Or look for authinfo parameter
+            else if (queryText.includes('authinfo')) {
+              potentialAuth = queryText.split('authinfo=')[1]?.split('&')[0] || '';
+            }
+            
+            if (potentialAuth && potentialAuth.length > 100) {
+              console.log("Found potential auth in query:", potentialAuth.substring(0, 20) + "...");
+              setLocalAuthInfo(potentialAuth);
+              return true;
+            }
+          }
+        } catch (error) {
+          console.error("Error parsing auth from query:", error);
+        }
+        return false;
+      }
+      return false;
+    };
+    
+    // Only run once and don't re-run if we already have auth
+    if (!localAuthInfo && !authInfo && !isFetchingAuthRef.current) {
+      parseUserProvidedAuth();
+    }
+  }, [address, authInfo, effectiveAuthInfo, localAuthInfo]);
+
   return (
     <OnboardingLayout 
       stepNumber={currentStep} 
@@ -238,6 +365,19 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
     >
       <p className="text-neutral-700 mb-6 text-lg">Add trusted contacts for recovery</p>
 
+      <RevealInput
+              value={numbersList ? 
+                numbersList.names.map((name, index) => `${name}: ${numbersList.numbers[index]}`).join('\n') : 
+                ''
+              }
+              label={address}
+              disabled
+              reveal={!!numbersList}
+              revealLabel={!!numbersList ? undefined : numbersListRevealLabel}
+              onRevealChange={handleRevealChanged}
+            />
+            {numbersListError && <p className="error">{StringUtils.truncate(numbersListError)}</p>}
+            
       <div className="space-y-4 mb-6 text-left">
         <Input
           type="text"
@@ -245,7 +385,7 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
           placeholder="Name"
           onChange={(e) => setNameValue(e.target.value)}
           className={entryError ? "border-red-500" : ""}
-          disabled={isInteractingWithChain}
+          disabled={isInteractingWithChain || isFetchingAuthRef.current}
         />
         {entryError && <p className="text-red-500 text-sm">{entryError}</p>}
         <Input
@@ -253,17 +393,17 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
           value={numberValue}
           placeholder="Number"
           onChange={(e) => setNumberValue(e.target.value)}
-          disabled={isInteractingWithChain}
+          disabled={isInteractingWithChain || isFetchingAuthRef.current}
         />
         <Button
           onClick={handleAddContact}
           variant="outline"
           className="w-full border-[#00A86B] text-[#00A86B] hover:bg-[#00A86B]/10 rounded-md"
           aria-label="Add Contact"
-          disabled={isLoading || isInteractingWithChain}
+          disabled={isLoading || isInteractingWithChain || isFetchingAuthRef.current}
         >
           <Plus className="mr-2 h-4 w-4" />
-          {isLoading || isInteractingWithChain ? "Adding..." : "Add Contact & Send Invite"}
+          {isLoading || isInteractingWithChain || isFetchingAuthRef.current ? "Adding..." : "Add Contact & Send Invite"}
         </Button>
       </div>
 
@@ -326,7 +466,7 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
                     placeholder="Name"
                     onChange={(e) => setNameValue(e.target.value)}
                     className={entryError ? "border-red-500" : ""}
-                    disabled={isInteractingWithChain}
+                    disabled={isInteractingWithChain || isFetchingAuthRef.current}
                   />
                   {entryError && <p className="text-red-500 text-sm">{entryError}</p>}
                   <Input
@@ -334,11 +474,11 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
                     value={numberValue}
                     placeholder="Number"
                     onChange={(e) => setNumberValue(e.target.value)}
-                    disabled={isInteractingWithChain}
+                    disabled={isInteractingWithChain || isFetchingAuthRef.current}
                   />
                   <div className={classes.setMessageActions}>
-                    <Button disabled={isInteractingWithChain} onClick={handleAddToNumbersList}>
-                      {isInteractingWithChain ? 'Please wait...' : 'Add Entry'}
+                    <Button disabled={isInteractingWithChain || isFetchingAuthRef.current} onClick={handleAddToNumbersList}>
+                      {isInteractingWithChain || isFetchingAuthRef.current ? 'Please wait...' : 'Add Entry'}
                     </Button>
                   </div>
                 </>
