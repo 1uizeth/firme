@@ -179,7 +179,7 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
     }
   }, [isTransactionReceiptSuccess, isTransactionReceiptError, isWriteContractError])
 
-  const handleRevealChanged = async (): Promise<void> => {
+  const handleRevealChanged = async (): Promise<void> => {              
     if (!isInteractingWithChain && !isFetchingAuthRef.current) {
       return await fetchNumbersList()
     }
@@ -365,7 +365,7 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
     >
       <p className="text-neutral-700 mb-6 text-lg">Add trusted contacts for recovery</p>
 
-      <RevealInput
+      {/* <RevealInput
               value={numbersList ? 
                 numbersList.names.map((name, index) => `${name}: ${numbersList.numbers[index]}`).join('\n') : 
                 ''
@@ -377,7 +377,7 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
               onRevealChange={handleRevealChanged}
             />
             {numbersListError && <p className="error">{StringUtils.truncate(numbersListError)}</p>}
-            
+             */}
       <div className="space-y-4 mb-6 text-left">
         <Input
           type="text"
@@ -396,7 +396,7 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
           disabled={isInteractingWithChain || isFetchingAuthRef.current}
         />
         <Button
-          onClick={handleAddContact}
+          onClick={handleAddToNumbersList}
           variant="outline"
           className="w-full border-[#00A86B] text-[#00A86B] hover:bg-[#00A86B]/10 rounded-md"
           aria-label="Add Contact"
@@ -435,7 +435,7 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
               </li>
             ))}
           </ul>
-          <div className={classes.homePage}>
+          {/* <div className={classes.homePage}>
             <div className="card">
               <h2>Numbers Reclaim</h2>
               {address && (
@@ -491,8 +491,8 @@ export default function Step3EmergencyContacts({ onComplete, onBack, currentStep
                 </>
               )}
             </div>
-          </div>
-        </div>
+          </div> */}
+        </div> 
       )}
 
       <Button
